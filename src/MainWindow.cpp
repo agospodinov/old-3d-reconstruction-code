@@ -134,8 +134,8 @@ void MainWindow::OnDetectedObjectSelected(int row)
     else
     {
         Xu::Core::Object &object = objects.at(row - 1);
-        const Xu::Vision::Core::VisualData &visualData = object.GetData().at(0);
-        ui->cvImageWidget->ShowImage(visualData.GetImage());
+        std::shared_ptr<Xu::Vision::Core::VisualData> visualData = std::dynamic_pointer_cast<Xu::Vision::Core::VisualData>(object.GetData().at(0));
+        ui->cvImageWidget->ShowImage(visualData->GetImage());
     }
 }
 

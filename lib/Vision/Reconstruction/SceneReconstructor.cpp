@@ -234,7 +234,7 @@ namespace Xu
                 if (initialTriangulation)
                 {
                     shouldRunBundleAdjustment = true;
-                    bundleAdjuster->RunOnAllData();
+//                    bundleAdjuster->RunOnAllData();
                     denseMatcher->Add(leftPOV);
                     denseMatcher->Add(rightPOV);
 

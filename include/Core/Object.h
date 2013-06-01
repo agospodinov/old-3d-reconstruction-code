@@ -1,10 +1,9 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
-#include <vector>
+#include <memory>
 #include <string>
-
-#include "Vision/Core/VisualData.h"
+#include <vector>
 
 namespace Xu
 {
@@ -15,11 +14,11 @@ namespace Xu
         class Object
         {
             public:
-                Object(const Vision::Core::VisualData &data, double confidenceLevel = 0.5, std::string label = "");
-                Object(const std::vector<Vision::Core::VisualData> &data, double confidenceLevel = 0.5, std::string label = "");
+                Object(const std::shared_ptr<ObjectData> &data, double confidenceLevel = 0.5, std::string label = "");
+                Object(const std::vector<std::shared_ptr<ObjectData> > &data, double confidenceLevel = 0.5, std::string label = "");
 
-                const std::vector<Vision::Core::VisualData> &GetData() const;
-                void AddData(const Vision::Core::VisualData &data);
+                const std::vector<std::shared_ptr<ObjectData> > &GetData() const;
+                void AddData(const std::shared_ptr<ObjectData> &data);
 
                 double GetConfidenceLevel() const;
                 const std::string &GetLabel() const;
@@ -29,7 +28,7 @@ namespace Xu
 
                 double confidenceLevel;
 
-                std::vector<Vision::Core::VisualData> objectData;
+                std::vector<std::shared_ptr<ObjectData> > objectData;
         };
     }
 }

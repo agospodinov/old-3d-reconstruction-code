@@ -6,7 +6,7 @@
 
 #include <opencv2/gpu/gpu.hpp>
 #include <opencv2/nonfree/nonfree.hpp>
-//#include <opencv2/nonfree/gpu.hpp>
+#include <opencv2/nonfree/gpu.hpp>
 
 #include "AbstractFeatureMatcher.h"
 

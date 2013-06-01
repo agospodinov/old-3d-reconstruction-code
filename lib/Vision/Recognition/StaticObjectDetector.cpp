@@ -81,11 +81,11 @@ namespace Xu
                 cv::cvtColor(foreground, foreground, CV_RGB2BGR);
 
                 std::shared_ptr<Vision::Core::IImage> foregroundImage(new Vision::Core::SingleViewImage(foreground));
-                Xu::Vision::Core::VisualData objectData(foregroundImage, NULL);
+                std::shared_ptr<Xu::Core::ObjectData> objectData(std::make_shared<Xu::Vision::Core::VisualData>(foregroundImage, nullptr));
                 std::cout << "Creating objects... " << std::flush;
                 Xu::Core::Object detectedObject(objectData, 0.2, "Foreground");
 
-                objects.push_back(detectedObject);
+                objects.push_back(std::move(detectedObject));
                 std::cout << "Done. " << std::endl;
 
                 return objects;
