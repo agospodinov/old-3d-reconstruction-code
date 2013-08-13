@@ -17,7 +17,10 @@ namespace Xu
     {
         namespace LinearAlgebra
         {
-            typedef Eigen::Matrix<Math::Core::Number, Eigen::Dynamic, 1> Vector;
+            template <int Elements>
+            using Vector = Eigen::Matrix<Math::Core::Number, Elements, 1>;
+
+//            using Vector = Eigen::Matrix<Math::Core::Number, Eigen::Dynamic, 1>;
 
 //            template <typename T, unsigned int N>
 //            class Vector

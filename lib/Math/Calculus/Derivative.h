@@ -1,8 +1,6 @@
 #ifndef DERIVATIVE_H
 #define DERIVATIVE_H
 
-#include <memory>
-
 #include "Math/Calculus/IFunction.h"
 
 namespace Xu
@@ -11,19 +9,19 @@ namespace Xu
     {
         namespace Calculus
         {
-            class Derivative : public IFunction
+            class Derivative : public UnivariateFunction
             {
                 public:
-                    explicit Derivative(const std::shared_ptr<IFunction> &function);
-                    Derivative(const std::shared_ptr<IFunction> &function, double stepSize);
+                    explicit Derivative(const UnivariateFunction &function);
+                    Derivative(const UnivariateFunction &function, double stepSize);
                     virtual ~Derivative();
 
-                    virtual double Evaluate(double x);
+                    virtual Math::Core::Number Evaluate(Math::Core::Number x) const;
 
                 private:
-                    std::shared_ptr<IFunction> function;
+                    const UnivariateFunction * const function;
 
-                    const double stepSize;
+                    const Math::Core::Number stepSize;
             };
         }
     }

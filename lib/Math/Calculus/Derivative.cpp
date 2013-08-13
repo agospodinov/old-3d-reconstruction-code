@@ -9,13 +9,13 @@ namespace Xu
     {
         namespace Calculus
         {
-            Derivative::Derivative(const std::shared_ptr<IFunction> &function)
-                : Derivative(function, cbrt(std::numeric_limits<double>::epsilon()))
+            Derivative::Derivative(const UnivariateFunction &function)
+                : Derivative(function, sqrt(std::numeric_limits<double>::epsilon()))
             {
             }
 
-            Derivative::Derivative(const std::shared_ptr<IFunction> &function, double stepSize)
-                : function(function),
+            Derivative::Derivative(const UnivariateFunction &function, double stepSize)
+                : function(&function),
                   stepSize(stepSize)
             {
             }
@@ -24,7 +24,7 @@ namespace Xu
             {
             }
 
-            double Derivative::Evaluate(double x)
+            Core::Number Derivative::Evaluate(Core::Number x) const
             {
                 return (function->Evaluate(x + stepSize) - function->Evaluate(x - stepSize)) / (2 * stepSize);
             }

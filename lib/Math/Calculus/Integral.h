@@ -14,16 +14,16 @@ namespace Xu
             class Integral
             {
                 public:
-                    explicit Integral(const std::shared_ptr<IFunction> &function);
-                    Integral(const std::shared_ptr<IFunction> &function, double stepSize);
-                    Integral(const std::shared_ptr<IFunction> &function, double lowerLimit, double upperLimit);
-                    Integral(const std::shared_ptr<IFunction> &function, double lowerLimit, double upperLimit, double stepSize);
+                    explicit Integral(const UnivariateFunction &function);
+                    Integral(const UnivariateFunction &function, double stepSize);
+                    Integral(const UnivariateFunction &function, double lowerLimit, double upperLimit);
+                    Integral(const UnivariateFunction &function, double lowerLimit, double upperLimit, double stepSize);
                     virtual ~Integral();
 
-                    virtual double Evaluate(double x);
+                    virtual double Evaluate(double x) const;
 
                 private:
-                    std::shared_ptr<IFunction> function;
+                    const UnivariateFunction * const function;
 
                     const double stepSize;
 

@@ -20,7 +20,7 @@ namespace Xu
             {
             }
 
-            double Antiderivative::Evaluate(double x)
+            double Antiderivative::Evaluate(double x) const
             {
 
             }

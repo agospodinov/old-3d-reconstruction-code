@@ -9,25 +9,25 @@ namespace Xu
     {
         namespace Calculus
         {
-            Integral::Integral(const std::shared_ptr<IFunction> &function)
+            Integral::Integral(const UnivariateFunction &function)
                 : Integral(function, cbrt(std::numeric_limits<double>::epsilon()))
             {
             }
 
-            Integral::Integral(const std::shared_ptr<IFunction> &function, double stepSize)
-                : function(function),
+            Integral::Integral(const UnivariateFunction &function, double stepSize)
+                : function(&function),
                   stepSize(stepSize),
                   definite(false)
             {
             }
 
-            Integral::Integral(const std::shared_ptr<IFunction> &function, double lowerLimit, double upperLimit)
+            Integral::Integral(const UnivariateFunction &function, double lowerLimit, double upperLimit)
                 : Integral(function, lowerLimit, upperLimit, cbrt(std::numeric_limits<double>::epsilon()))
             {
             }
 
-            Integral::Integral(const std::shared_ptr<IFunction> &function, double lowerLimit, double upperLimit, double stepSize)
-                : function(function),
+            Integral::Integral(const UnivariateFunction &function, double lowerLimit, double upperLimit, double stepSize)
+                : function(&function),
                   stepSize(stepSize),
                   lowerLimit(lowerLimit),
                   upperLimit(upperLimit),
@@ -39,7 +39,7 @@ namespace Xu
             {
             }
 
-            double Integral::Evaluate(double x)
+            double Integral::Evaluate(double x) const
             {
                 if (definite)
                 {

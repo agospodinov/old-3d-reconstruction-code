@@ -1,14 +1,13 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
-#include <boost/numeric/ublas/matrix.hpp>
-#include <opencv2/core/core.hpp>
-#include <eigen3/Eigen/Core>
+//#include <opencv2/core/core.hpp>
+#include <eigen3/Eigen/Dense>
 
-#include <memory>
+//#include <memory>
 
 #include "Math/Core/Number.h"
-#include "VectorSpace.h"
+//#include "VectorSpace.h"
 
 namespace Xu
 {
@@ -16,7 +15,10 @@ namespace Xu
     {
         namespace LinearAlgebra
         {
-            typedef Eigen::Matrix<Math::Core::Number, Eigen::Dynamic, Eigen::Dynamic> Matrix;
+            template <int Rows, int Columns>
+            using Matrix = Eigen::Matrix<double, Rows, Columns>;
+
+//            using Matrix = Eigen::Matrix<Math::Core::Number, Eigen::Dynamic, Eigen::Dynamic>;
 
 //            class Matrix : VectorSpace<2>
 //            {

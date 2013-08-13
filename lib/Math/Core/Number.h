@@ -14,10 +14,10 @@ namespace Xu
     {
         namespace Core
         {
-            typedef boost::multiprecision::number<boost::multiprecision::cpp_int> Integer;
-            typedef boost::multiprecision::number<boost::multiprecision::cpp_dec_float<100> > Real;
+            using Integer = boost::multiprecision::number<boost::multiprecision::cpp_int>;
+            using Real = boost::multiprecision::number<boost::multiprecision::cpp_dec_float<100> >;
 
-            typedef Real Number;
+            using Number = Real;
         }
     }
 }

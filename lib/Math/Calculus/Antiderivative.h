@@ -11,13 +11,13 @@ namespace Xu
     {
         namespace Calculus
         {
-            class Antiderivative : public IFunction
+            class Antiderivative : public UnivariateFunction
             {
                 public:
                     explicit Antiderivative(const std::shared_ptr<IFunction> &function);
                     Antiderivative(const std::shared_ptr<IFunction> &function, double stepSize);
                     
-                    virtual double Evaluate(double x);
+                    virtual double Evaluate(double x) const;
                 private:
                     std::shared_ptr<IFunction> function;
 
