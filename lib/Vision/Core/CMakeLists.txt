@@ -1,5 +1,4 @@
 set(VISION_CORE_LIB_SOURCES
-    VisualData.cpp          VisualData.h
     SingleViewCamera.cpp	SingleViewCamera.h
     SingleViewImage.cpp		SingleViewImage.h
     PointOfView.cpp         PointOfView.h

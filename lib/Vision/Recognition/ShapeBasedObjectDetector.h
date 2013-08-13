@@ -9,14 +9,14 @@ namespace Xu
     {
         namespace Recognition
         {
-            class ShapeBasedObjectDetector : public IObjectDetector
-            {
-                public:
-                    ShapeBasedObjectDetector();
-                    virtual ~ShapeBasedObjectDetector();
+//            class ShapeBasedObjectDetector : public IObjectDetector
+//            {
+//                public:
+//                    ShapeBasedObjectDetector();
+//                    virtual ~ShapeBasedObjectDetector();
 
-                    virtual std::vector<Xu::Core::Object> Detect(Vision::Core::VisualData data);
-            };
+//                    virtual std::vector<Xu::Core::Object> Detect(Vision::Core::VisualData data);
+//            };
         }
     }
 }

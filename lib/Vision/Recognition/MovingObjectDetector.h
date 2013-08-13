@@ -9,17 +9,17 @@ namespace Xu
     {
         namespace Recognition
         {
-            class MovingObjectDetector : public IObjectDetector
-            {
-                public:
-                    MovingObjectDetector();
-                    virtual ~MovingObjectDetector();
+//            class MovingObjectDetector : public IObjectDetector
+//            {
+//                public:
+//                    MovingObjectDetector();
+//                    virtual ~MovingObjectDetector();
 
-                    virtual std::vector<Xu::Core::Object> Detect(Vision::Core::VisualData data);
+//                    virtual std::vector<Xu::Core::Object> Detect(Vision::Core::VisualData data);
 
-                private:
+//                private:
 
-            };
+//            };
         }
     }
 }

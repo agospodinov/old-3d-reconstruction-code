@@ -57,9 +57,9 @@ namespace Xu
                 return cv::Mat();
             }
 
-            std::shared_ptr<IImage> SingleViewImage::Copy() const
+            IImage *SingleViewImage::Copy() const
             {
-                return std::shared_ptr<IImage>(new SingleViewImage(this->image));
+                return new SingleViewImage(this->image);
             }
 
             std::shared_ptr<IImage> SingleViewImage::ApplyMask(const IImage::Mask &mask) const

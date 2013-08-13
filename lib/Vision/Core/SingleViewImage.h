@@ -24,7 +24,7 @@ namespace Xu
                     virtual cv::Mat GetMatrix() const;
                     virtual cv::Mat GetDepthMatrix() const;
 
-                    virtual std::shared_ptr<IImage> Copy() const;
+                    virtual IImage *Copy() const;
                     virtual std::shared_ptr<IImage> ApplyMask(const Mask &mask) const;
 
                     virtual IImage::Size GetSize() const;

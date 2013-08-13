@@ -8,16 +8,16 @@ namespace Xu
     {
         namespace Recognition
         {
-            CompositeObjectDetector::CompositeObjectDetector()
-            {
-            }
+//            CompositeObjectDetector::CompositeObjectDetector()
+//            {
+//            }
 
-            CompositeObjectDetector::~CompositeObjectDetector()
-            {
-            }
+//            CompositeObjectDetector::~CompositeObjectDetector()
+//            {
+//            }
 
-            std::vector<Xu::Core::Object> CompositeObjectDetector::Detect(Core::VisualData data)
-            {
+//            std::vector<Xu::Core::Object> CompositeObjectDetector::Detect(Core::VisualData data)
+//            {
 //                std::map<const IObjectDetector *, std::vector<Xu::Core::Object> > objects;
 //                for (const IObjectDetector &detector : objectDetectors)
 //                {
@@ -25,7 +25,7 @@ namespace Xu
 //                }
 
                 // Merge results...
-            }
+//            }
 
         }
     }

@@ -16,17 +16,17 @@ namespace Xu
     {
         namespace Recognition
         {
-            ShapeBasedObjectDetector::ShapeBasedObjectDetector()
-            {
-            }
+//            ShapeBasedObjectDetector::ShapeBasedObjectDetector()
+//            {
+//            }
 
-            ShapeBasedObjectDetector::~ShapeBasedObjectDetector()
-            {
-            }
+//            ShapeBasedObjectDetector::~ShapeBasedObjectDetector()
+//            {
+//            }
 
-            std::vector<Xu::Core::Object> ShapeBasedObjectDetector::Detect(Core::VisualData data)
-            {
-                throw std::runtime_error("Not yet implemented");
+//            std::vector<Xu::Core::Object> ShapeBasedObjectDetector::Detect(Core::VisualData data)
+//            {
+//                throw std::runtime_error("Not yet implemented");
 //                pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointCloud = data.GetPointCloud()->GetPCLPointCloud();
 //                pcl::search::Search<pcl::PointXYZRGB>::Ptr tree = pcl::search::Search<pcl::PointXYZRGB>::Ptr(new pcl::search::KdTree<pcl::PointXYZRGB>);
 
@@ -48,7 +48,7 @@ namespace Xu
 
 //                std::vector<pcl::PointIndices> clusters;
 //                segmentor.extract(clusters);
-            }
+//            }
         }
     }
 }

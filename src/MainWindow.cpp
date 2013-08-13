@@ -9,7 +9,6 @@
 #include <qt4/QtGui/QMessageBox>
 
 #include "Vision/Core/IImage.h"
-#include "Vision/Core/VisualData.h"
 #include "Vision/Recognition/StaticObjectDetector.h"
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -94,10 +93,9 @@ void MainWindow::OnDetectObjectsButtonClicked()
     {
         int index = ui->frameSelectorSlider->sliderPosition();
         const std::shared_ptr<Xu::Vision::Core::PointOfView> &pointOfView = pointsOfView.at(index);
-        std::shared_ptr<Xu::Vision::Core::IImage> image = pointOfView->GetImage()->Copy();
 
-        Xu::Vision::Core::VisualData data(image, NULL);
-        objectDetector = std::unique_ptr<Xu::Vision::Recognition::IObjectDetector>(new Xu::Vision::Recognition::StaticObjectDetector());
+        Xu::Core::Data<Xu::Vision::Core::PointOfView> data(*pointOfView);
+        objectDetector = std::unique_ptr<Xu::Vision::Recognition::IObjectDetector<Xu::Vision::Core::PointOfView> >(new Xu::Vision::Recognition::StaticObjectDetector());
 
         objects = objectDetector->Detect(data);
 
@@ -134,8 +132,8 @@ void MainWindow::OnDetectedObjectSelected(int row)
     else
     {
         Xu::Core::Object &object = objects.at(row - 1);
-        std::shared_ptr<Xu::Vision::Core::VisualData> visualData = std::dynamic_pointer_cast<Xu::Vision::Core::VisualData>(object.GetData().at(0));
-        ui->cvImageWidget->ShowImage(visualData->GetImage());
+        Xu::Core::Data<std::shared_ptr<Xu::Vision::Core::IImage> > visualData = object.GetData<std::shared_ptr<Xu::Vision::Core::IImage> >().at(0);
+        ui->cvImageWidget->ShowImage(visualData.GetItem());
     }
 }
 

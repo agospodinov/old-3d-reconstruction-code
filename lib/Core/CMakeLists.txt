@@ -1,6 +1,6 @@
 set(CORE_LIB_SOURCES
     Object.cpp		Object.h
-    ObjectData.cpp	ObjectData.h
+    Data.cpp        Data.h
     Fact.cpp		Fact.h
     Event.cpp		Event.h
 )

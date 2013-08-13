@@ -24,6 +24,7 @@ namespace Xu
             {
                 public:
                     PointOfView(const std::shared_ptr<ICamera> &associatedCamera, std::unique_ptr<IImage> frame);
+                    PointOfView(const PointOfView &other);
                     ~PointOfView();
 
                     const std::unique_ptr<IImage> &GetImage() const;

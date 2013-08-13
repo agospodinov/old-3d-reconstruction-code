@@ -18,6 +18,13 @@ namespace Xu
                 cameraParameters.SetFocalLength(focalLength);
             }
 
+            PointOfView::PointOfView(const PointOfView &other)
+                : camera(other.camera),
+                  cameraParameters(other.cameraParameters),
+                  image(other.image->Copy())
+            {
+            }
+
             PointOfView::~PointOfView()
             {
             }

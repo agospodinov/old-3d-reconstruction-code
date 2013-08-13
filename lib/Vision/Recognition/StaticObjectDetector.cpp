@@ -6,6 +6,7 @@
 #include <opencv2/gpu/gpu.hpp>
 
 #include "Vision/Core/IImage.h"
+#include "Vision/Core/PointOfView.h"
 #include "Vision/Core/SingleViewImage.h"
 
 namespace Xu
@@ -25,15 +26,15 @@ namespace Xu
             {
             }
 
-            std::vector<Xu::Core::Object> StaticObjectDetector::Detect(Core::VisualData data)
+            std::vector<Xu::Core::Object> StaticObjectDetector::Detect(Xu::Core::Data<Vision::Core::PointOfView> data)
             {
                 std::cout << "Running static object detector..." << std::endl;
                 std::vector<Xu::Core::Object> objects;
 
-                cv::Mat image = data.GetImage()->GetMatrix();
+                cv::Mat image = data.GetItem().GetImage()->GetMatrix();
 
                 cv::resize(image, image, cv::Size(), 0.2, 0.2);
-                cv::Mat tmp; cv::cvtColor(image, tmp, CV_RGB2BGRA, 4);
+                cv::Mat tmp; cv::cvtColor(image, tmp, CV_BGR2BGRA, 4);
                 cv::gpu::GpuMat gpuImage(tmp);
                 cv::Mat segmented;
 
@@ -81,9 +82,10 @@ namespace Xu
                 cv::cvtColor(foreground, foreground, CV_RGB2BGR);
 
                 std::shared_ptr<Vision::Core::IImage> foregroundImage(new Vision::Core::SingleViewImage(foreground));
-                std::shared_ptr<Xu::Core::ObjectData> objectData(std::make_shared<Xu::Vision::Core::VisualData>(foregroundImage, nullptr));
+                Xu::Core::Data<std::shared_ptr<Vision::Core::IImage> > objectData(foregroundImage);
                 std::cout << "Creating objects... " << std::flush;
-                Xu::Core::Object detectedObject(objectData, 0.2, "Foreground");
+                Xu::Core::Object detectedObject(0.2, "Foreground");
+                detectedObject.AddData(objectData);
 
                 objects.push_back(std::move(detectedObject));
                 std::cout << "Done. " << std::endl;

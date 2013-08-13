@@ -44,7 +44,7 @@ class MainWindow : public QMainWindow
 
         std::shared_ptr<Xu::Vision::Core::SingleViewCamera> camera;
         std::unique_ptr<Xu::Vision::Reconstruction::SceneReconstructor> sceneReconstructor;
-        std::unique_ptr<Xu::Vision::Recognition::IObjectDetector> objectDetector;
+        std::unique_ptr<Xu::Vision::Recognition::IObjectDetector<Xu::Vision::Core::PointOfView> > objectDetector;
 
         std::vector<Xu::Core::Object> objects;
         std::vector<std::shared_ptr<Xu::Vision::Core::PointOfView> > pointsOfView;

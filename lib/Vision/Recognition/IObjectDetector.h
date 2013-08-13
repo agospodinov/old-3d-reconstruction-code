@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "Core/Object.h"
-#include "Vision/Core/VisualData.h"
+#include "Core/Data.h"
 
 namespace Xu
 {
@@ -12,12 +12,19 @@ namespace Xu
     {
         namespace Recognition
         {
+            template <typename T>
             class IObjectDetector
             {
                 public:
-                    virtual ~IObjectDetector();
+                    IObjectDetector()
+                    {
+                    }
 
-                    virtual std::vector<Xu::Core::Object> Detect(Vision::Core::VisualData data) = 0;
+                    virtual ~IObjectDetector()
+                    {
+                    }
+
+                    virtual std::vector<Xu::Core::Object> Detect(Xu::Core::Data<T> data) = 0;
             };
         }
     }

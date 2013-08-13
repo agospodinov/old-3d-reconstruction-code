@@ -38,6 +38,6 @@ void CVImageWidget::paintEvent(QPaintEvent *)
 {
     // Display the image
     QPainter painter(this);
-    painter.drawImage(QPoint(0,0), image.scaledToHeight(this->height()));
+    painter.drawImage(QPoint(0,0), image.rgbSwapped().scaledToHeight(this->height()));
     painter.end();
 }

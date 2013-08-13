@@ -11,17 +11,17 @@ namespace Xu
     {
         namespace Recognition
         {
-            class CompositeObjectDetector : public IObjectDetector
-            {
-                public:
-                    CompositeObjectDetector();
-                    virtual ~CompositeObjectDetector();
+//            class CompositeObjectDetector : public IObjectDetector
+//            {
+//                public:
+//                    CompositeObjectDetector();
+//                    virtual ~CompositeObjectDetector();
 
-                    virtual std::vector<Xu::Core::Object> Detect(Vision::Core::VisualData data);
+//                    virtual std::vector<Xu::Core::Object> Detect(Vision::Core::VisualData data);
 
-                private:
-                    std::set<std::unique_ptr<IObjectDetector> > objectDetectors;
-            };
+//                private:
+//                    std::set<std::unique_ptr<IObjectDetector> > objectDetectors;
+//            };
         }
     }
 }
