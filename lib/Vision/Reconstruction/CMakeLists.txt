@@ -5,6 +5,7 @@ set(RECONSTRUCTION_LIB_SOURCES
     AbstractDenseMatcher.cpp		AbstractDenseMatcher.h
     DenseMatcher.cpp                DenseMatcher.h
     SceneReconstructor.cpp          SceneReconstructor.h
+    PoseEstimator.cpp               PoseEstimator.h
     BundleAdjuster.cpp              BundleAdjuster.h
     CameraCalibrator.cpp            CameraCalibrator.h
 
