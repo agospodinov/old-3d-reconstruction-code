@@ -1,11 +1,14 @@
 #include "Vision/Core/Point.h"
 
+#include <tuple>
+
+#include <eigen3/Eigen/Dense>
+#include <eigen3/unsupported/Eigen/NonLinearOptimization>
+
 #include <opencv2/core/eigen.hpp>
 
-#include <Eigen/Core>
-#include <unsupported/Eigen/NonLinearOptimization>
-
 #include "Vision/Core/PointOfView.h"
+#include "Vision/Core/Projection.h"
 
 namespace Xu
 {
@@ -13,86 +16,74 @@ namespace Xu
     {
         namespace Core
         {
-
-            template<typename _Scalar, int NX=Eigen::Dynamic, int NY=Eigen::Dynamic>
-            struct LMDifFunctor
+            namespace
             {
-                    typedef _Scalar Scalar;
-                    enum {
-                        InputsAtCompileTime = NX,
-                        ValuesAtCompileTime = NY
-                    };
-                    typedef Eigen::Matrix<Scalar,InputsAtCompileTime,1> InputType;
-                    typedef Eigen::Matrix<Scalar,ValuesAtCompileTime,1> ValueType;
-                    typedef Eigen::Matrix<Scalar,ValuesAtCompileTime,InputsAtCompileTime> JacobianType;
+                template<typename _Scalar, int NX=Eigen::Dynamic, int NY=Eigen::Dynamic>
+                struct LMDifFunctor
+                {
+                        typedef _Scalar Scalar;
+                        enum {
+                            InputsAtCompileTime = NX,
+                            ValuesAtCompileTime = NY
+                        };
+                        typedef Eigen::Matrix<Scalar,InputsAtCompileTime,1> InputType;
+                        typedef Eigen::Matrix<Scalar,ValuesAtCompileTime,1> ValueType;
+                        typedef Eigen::Matrix<Scalar,ValuesAtCompileTime,InputsAtCompileTime> JacobianType;
 
-                    const int m_inputs, m_values;
-                    const Point *point;
+                        const int m_inputs, m_values;
+                        const std::vector<Projection> *usefulProjections;
 
-                    LMDifFunctor() : m_inputs(InputsAtCompileTime), m_values(ValuesAtCompileTime) {}
-                    LMDifFunctor(int inputs, int values, const Point *point)
-                        : m_inputs(inputs),
-                          m_values(values),
-                          point(point)
-                    {
-                    }
-
-                    int inputs() const { return m_inputs; }
-                    int values() const { return m_values; }
-
-                    int operator()(const Eigen::VectorXd &x, Eigen::VectorXd &fvec) const
-                    {
-                        std::vector<std::shared_ptr<PointOfView> > usefulPointsOfView = point->GetUsefulPointsOfView();
-                        int usefulPointsOfViewCount = usefulPointsOfView.size();
-
-                        if (usefulPointsOfViewCount < 2)
+                        LMDifFunctor() : m_inputs(InputsAtCompileTime), m_values(ValuesAtCompileTime) {}
+                        LMDifFunctor(int inputs, int values, const std::vector<Projection> *usefulProjections)
+                            : m_inputs(inputs),
+                              m_values(values),
+                              usefulProjections(usefulProjections)
                         {
-                            return 1;
                         }
 
-                        for (int i = 0; i < usefulPointsOfViewCount; i++)
+                        int inputs() const { return m_inputs; }
+                        int values() const { return m_values; }
+
+                        int operator()(const Eigen::VectorXd &x, Eigen::VectorXd &fvec) const
                         {
-                            std::shared_ptr<PointOfView> pointOfView = usefulPointsOfView[i];
-                            cv::Point2d imagePoint = point->GetPointInView(pointOfView);
-                            double dx, dy;
+                            int i = 0;
+                            for (const Projection &projection : *usefulProjections)
+                            {
+                                std::shared_ptr<PointOfView> pointOfView = projection.GetPointOfView();
 
-                            cv::Point3d p(imagePoint.x, imagePoint.y, -1.0);
-                            cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
-                            p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
+                                // Refactor, move out of here.
+                                double dx, dy;
 
-                            Eigen::MatrixXd R; cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
-                            Eigen::MatrixXd T; cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
-                            T = -1 * (R * T);
+                                cv::Point3d p(projection.GetX(), projection.GetY(), -1.0);
+                                cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
+                                p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
 
-                            Eigen::MatrixXd pp(3, 1);
-                            pp = R * x;
-                            pp += T;
+                                Eigen::MatrixXd R; cv::cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
+                                Eigen::MatrixXd T; cv::cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
+                                T = -1 * (R * T);
 
-                            dx = pp(0) / pp(2) - p.x;
-                            dy = pp(1) / pp(2) - p.y;
+                                Eigen::MatrixXd pp(3, 1);
+                                pp = R * x;
+                                pp += T;
 
-                            fvec[2 * i + 0] = dx;
-                            fvec[2 * i + 1] = dy;
+                                dx = pp(0) / pp(2) - p.x;
+                                dy = pp(1) / pp(2) - p.y;
+
+                                fvec[2 * i + 0] = dx;
+                                fvec[2 * i + 1] = dy;
+
+                                i++;
+                            }
+
+                            return 0;
                         }
-
-                        return 0;
-                    }
-            };
+                };
+            }
 
             Point::Point()
                 : x(0), y(0), z(0),
                   r(0), g(0), b(0),
-                  triangulated(false),
-                  hidden(false)
-            {
-            }
-
-            Point::Point(const Point &other)
-                : x(other.x), y(other.y), z(other.z),
-                  r(other.r), g(other.g), b(other.b),
-                  imagePointInViews(other.imagePointInViews),
-                  hidden(other.hidden),
-                  triangulated(other.triangulated)
+                  triangulated(false)
             {
             }
 
@@ -100,99 +91,14 @@ namespace Xu
             {
             }
 
-            Point &Point::operator =(const Point &other)
-            {
-                x = other.x; y = other.y; z = other.z;
-                r = other.r; g = other.g; b = other.b;
-
-                imagePointInViews = other.imagePointInViews;
-
-                hidden = other.hidden;
-                triangulated = other.triangulated;
-
-                return *this;
-            }
-
-            //bool Point::operator ==(const Point &other)
-            //{
-            //    return (x == other.x &&
-            //            y == other.y &&
-            //            z == other.z &&
-            //            r == other.r &&
-            //            g == other.g &&
-            //            b == other.b &&
-            //            triangulated == other.triangulated &&
-            //            hidden == other.hidden &&
-            //            imagePointInViews == other.imagePointInViews);
-            //}
-
-            Point Point::Merge(const Point &leftPoint, const Point &rightPoint)
-            {
-                Point mergedPoint;
-
-                for (auto it : leftPoint.imagePointInViews)
-                {
-                    std::shared_ptr<PointOfView> pointOfView = it.first.lock();
-                    if (pointOfView != NULL)
-                    {
-                        mergedPoint.AddCorrespondence(pointOfView, it.second);
-                    }
-                }
-                for (auto it : rightPoint.imagePointInViews)
-                {
-                    std::shared_ptr<PointOfView> pointOfView = it.first.lock();
-                    if (pointOfView != NULL)
-                    {
-                        mergedPoint.AddCorrespondence(pointOfView, it.second);
-                    }
-                }
-
-                mergedPoint.SetColor((leftPoint.r+rightPoint.r)/2.0, (leftPoint.g+rightPoint.g)/2.0, (leftPoint.b+rightPoint.b)/2.0);
-
-                if (leftPoint.IsTriangulated())
-                {
-                    mergedPoint.SetPosition(leftPoint.GetX(), leftPoint.GetY(), leftPoint.GetZ());
-                    mergedPoint.SetTriangulated(leftPoint.IsTriangulated());
-                }
-                else if (rightPoint.IsTriangulated())
-                {
-                    mergedPoint.SetPosition(rightPoint.GetX(), rightPoint.GetY(), rightPoint.GetZ());
-                    mergedPoint.SetTriangulated(rightPoint.IsTriangulated());
-                }
-                else
-                {
-                    // Just go with the first one, doesn't really matter at this point
-                    mergedPoint.SetPosition(leftPoint.GetX(), leftPoint.GetY(), leftPoint.GetZ());
-                    mergedPoint.SetTriangulated(false);
-                }
-
-                mergedPoint.SetHidden(leftPoint.IsHidden() || rightPoint.IsHidden());
-                return mergedPoint;
-            }
-
-            cv::Point3d Point::GetPoint3d() const
-            {
-                return cv::Point3d(x, y, z);
-            }
-
-            pcl::PointXYZRGB Point::GetPCLPoint() const
-            {
-                pcl::PointXYZRGB point;
-                point.x = (float) x; point.y = (float) y; point.z = (float) z;
-                uint32_t rgb = (static_cast<uint32_t>(r) << 16 | static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b));
-                point.rgb = *reinterpret_cast<float*>(&rgb);
-                return point;
-            }
-
-            Point::operator cv::Point3d() const
-            {
-                return GetPoint3d();
-            }
-
-            Point::operator pcl::PointXYZRGB() const
-            {
-                return GetPCLPoint();
-            }
+//            pcl::PointXYZRGB Point::GetPCLPoint() const
+//            {
+//                pcl::PointXYZRGB point;
+//                point.x = (float) x; point.y = (float) y; point.z = (float) z;
+//                uint32_t rgb = (static_cast<uint32_t>(r) << 16 | static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b));
+//                point.rgb = *reinterpret_cast<float*>(&rgb);
+//                return point;
+//            }
 
             double Point::GetX() const
             {
@@ -214,13 +120,6 @@ namespace Xu
                 this->x = x;
                 this->y = y;
                 this->z = z;
-            }
-
-            void Point::SetPosition(const cv::Point3d &point)
-            {
-                this->x = point.x;
-                this->y = point.y;
-                this->z = point.z;
             }
 
             uchar Point::GetR() const
@@ -250,177 +149,106 @@ namespace Xu
                 return triangulated;
             }
 
-            bool Point::IsHidden() const
+            const std::vector<Projection> &Point::GetProjections() const
             {
-                return hidden;
+                return projections;
             }
 
-            void Point::SetHidden(bool hidden)
+            const boost::optional<Projection> Point::GetProjection(const std::shared_ptr<PointOfView> &pointOfView) const
             {
-                this->hidden = hidden;
-            }
-
-            int Point::GetCorrespondenceCount() const
-            {
-                return imagePointInViews.size();
-            }
-
-            void Point::AddCorrespondence(const std::shared_ptr<PointOfView> &pointOfView, const cv::Point2d &imagePoint)
-            {
-                std::weak_ptr<PointOfView> weakPointOfView(pointOfView);
-                imagePointInViews[weakPointOfView] = imagePoint;
-            }
-
-            void Point::FixCorrespondenceProjection(const std::shared_ptr<PointOfView> &pointOfView, const cv::Point2d &fixedPoint)
-            {
-                if (HasCorrespondenceInView(pointOfView))
+                auto it = std::find_if(projections.begin(), projections.end(), [&](const Projection &projection)
                 {
-                    std::weak_ptr<PointOfView> weakPointOfView(pointOfView);
-                    imagePointInViews[weakPointOfView] = fixedPoint;
-                }
-            }
+                    // By definition, shared pointers should not point to
+                    // null before all of them fall out of scope. Having been
+                    // passed a reference to a shared ptr, we can assume that
+                    // the object is not null, therefore even if the projection's
+                    // point of view has expired, null != pointOfView.
+                    return projection.GetPointOfView() == pointOfView;
+                });
 
-            bool Point::HasCorrespondenceInView(const std::shared_ptr<PointOfView> &pointOfView) const
-            {
-                std::weak_ptr<PointOfView> weakPointOfView(pointOfView);
-                return (imagePointInViews.find(weakPointOfView) != imagePointInViews.end());
-            }
-
-            cv::Point2d Point::GetPointInView(const std::shared_ptr<PointOfView> &pointOfView) const
-            {
-                if (HasCorrespondenceInView(pointOfView))
+                if (it != projections.end())
                 {
-                    std::weak_ptr<PointOfView> weakPointOfView(pointOfView);
-                    return imagePointInViews.at(weakPointOfView);
+                    return boost::optional<Projection>(*it);
                 }
-                // TODO use boost.optional
-                return cv::Point2d(DBL_MAX, DBL_MAX);
+                return boost::optional<Projection>();
             }
 
-            Point::ImagePointInViewsMap Point::GetCorrespondeces()
+            bool Point::HasProjection(const std::shared_ptr<PointOfView> &pointOfView) const
             {
-                return imagePointInViews;
+                return GetProjection(pointOfView).is_initialized();
             }
 
-            double Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const
+            void Point::AddProjection(const Projection &projection)
             {
-                double distance = -1.0;
-                if (HasCorrespondenceInView(pointOfView))
-                {
-                    double dx, dy;
-                    cv::Point2d imagePoint = GetPointInView(pointOfView);
-
-                    cv::Point3d p(imagePoint.x, imagePoint.y, -1.0);
-                    cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
-                    p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
-
-                    cv::Point2d projectedPoint = ProjectPoint(pointOfView);
-
-                    dx = projectedPoint.x - p.x;
-                    dy = projectedPoint.y - p.y;
-
-                    distance = dx * dx + dy * dy;
-                }
-                return distance;
+                projections.push_back(projection);
             }
 
             void Point::Triangulate(bool reset, bool optimize)
             {
+                std::vector<Projection> usefulProjections;
+                std::copy_if(projections.begin(), projections.end(), std::back_inserter(usefulProjections), [](const Projection &projection)
+                {
+                    std::shared_ptr<PointOfView> pointOfView = projection.GetPointOfView();
+                    return (pointOfView != NULL && pointOfView->GetCameraParameters().IsPoseDetermined());
+                });
+
                 if (!triangulated || (triangulated && reset))
                 {
                     triangulated = false;
 
-                    if (GetUsefulPointsOfViewCount() < 2)
+                    if (usefulProjections.size() < 2)
                     {
                         return;
                     }
 
-                    TriangulateLinear();
+                    TriangulateLinear(usefulProjections);
 
                     triangulated = true;
                 }
 
                 if (triangulated && optimize)
                 {
-                    Refine3DPosition();
+                    Refine3DPosition(usefulProjections);
                 }
             }
 
-            void Point::Refine3DPosition()
+            bool operator ==(const Point &left, const Point &right)
             {
-                const int m = 2 * GetUsefulPointsOfViewCount(), n = 3;
-                int info;
-                Eigen::VectorXd point(3);
-                point(0) = x;
-                point(1) = y;
-                point(2) = z;
-
-                LMDifFunctor<double> functor(n, m, this);
-                Eigen::NumericalDiff<LMDifFunctor<double> > numDiff(functor);
-                Eigen::LevenbergMarquardt<Eigen::NumericalDiff<LMDifFunctor<double> > > lm(numDiff);
-                info = lm.minimize(point);
-
-                x = point(0);
-                y = point(1);
-                z = point(2);
+                return (left.x == right.x && left.y == right.y && left.z == right.z
+                        && left.r == right.r && left.g == right.g && left.b == right.b
+                        && left.triangulated == right.triangulated
+                        && left.projections == right.projections);
             }
 
-            cv::Point2d Point::ProjectPoint(std::shared_ptr<PointOfView> pointOfView) const
+            bool operator <(const Point &left, const Point &right)
             {
-                Eigen::MatrixXd R; cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
-                Eigen::MatrixXd T; cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
-                T = -1 * (R * T);
-
-                Eigen::MatrixXd X(3, 1); X(0) = x; X(1) = y; X(2) = z;
-                Eigen::MatrixXd pp(3, 1);
-                pp = R * X;
-                pp += T;
-
-                return cv::Point2d(pp(0) / pp(2), pp(1) / pp(2));
+                return std::tie(left.x, left.y, left.z,
+                                left.r, left.g, left.b,
+                                left.triangulated,
+                                left.projections) <
+                        std::tie(right.x, right.y, right.z,
+                                 right.r, right.g, right.b,
+                                 right.triangulated,
+                                 right.projections);
             }
 
-            std::vector<std::shared_ptr<PointOfView> > Point::GetUsefulPointsOfView() const
+            void Point::TriangulateLinear(const std::vector<Projection> &usefulProjections)
             {
-                std::vector<std::shared_ptr<PointOfView> > usefulPointsOfView;
-                std::for_each(imagePointInViews.begin(), imagePointInViews.end(), [&](const std::pair<std::weak_ptr<PointOfView>, cv::Point2d> &projection) {
-                    std::shared_ptr<PointOfView> pointOfView = projection.first.lock();
-                    if (pointOfView != NULL && pointOfView->GetCameraParameters().IsPoseDetermined())
-                    {
-                        usefulPointsOfView.push_back(pointOfView);
-                    }
-                });
-                return usefulPointsOfView;
-            }
-
-            int Point::GetUsefulPointsOfViewCount() const
-            {
-                return GetUsefulPointsOfView().size();
-
-            }
-
-            void Point::SetTriangulated(bool triangulated)
-            {
-                this->triangulated = triangulated;
-            }
-
-            void Point::TriangulateLinear()
-            {
-                std::vector<std::shared_ptr<PointOfView> > usefulPointsOfView = GetUsefulPointsOfView();
-                int usefulPointsOfViewCount = usefulPointsOfView.size();
+                int usefulPointsOfViewCount = usefulProjections.size();
                 Eigen::MatrixXd A(2 * usefulPointsOfViewCount, 3);
                 Eigen::MatrixXd B(2 * usefulPointsOfViewCount, 1);
 
-                for (int i = 0; i < usefulPointsOfViewCount; i++)
+                int i = 0;
+                for (const Projection &projection : usefulProjections)
                 {
-                    std::shared_ptr<PointOfView> pointOfView = usefulPointsOfView.at(i);
-                    cv::Point2d imagePoint = GetPointInView(pointOfView);
+                    std::shared_ptr<PointOfView> pointOfView = projection.GetPointOfView();
 
-                    cv::Point3d p(imagePoint.x, imagePoint.y, -1.0);
+                    cv::Point3d p(projection.GetX(), projection.GetY(), -1.0);
                     cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
                     p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
 
-                    Eigen::MatrixXd R; cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
-                    Eigen::MatrixXd T; cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
+                    Eigen::MatrixXd R; cv::cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
+                    Eigen::MatrixXd T; cv::cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
                     T = -1 * (R * T);
 
                     A(2 * i + 0, 0) = R(0, 0) - p.x * R(2, 0);
@@ -433,24 +261,71 @@ namespace Xu
 
                     B(2 * i + 0, 0) = p.x * T(2) - T(0);
                     B(2 * i + 1, 0) = p.y * T(2) - T(1);
+
+                    i++;
                 }
 
                 Eigen::MatrixXd X = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(B);
-
-                //    double error = 0.0;
-
-                //    for (int i = 0; i < validPointsOfViewCount; i++)
-                //    {
-                //        error += EstimateError(validPointsOfView[i]);
-                //    }
-
-                //    std::cout << "Reprojection error for point: " << error << std::endl;
 
                 this->x = X(0);
                 this->y = X(1);
                 this->z = X(2);
             }
 
+            void Point::Refine3DPosition(const std::vector<Projection> &usefulProjections)
+            {
+                const int m = 2 * usefulProjections.size(), n = 3;
+                int info;
+                Eigen::VectorXd point(3);
+                point(0) = x;
+                point(1) = y;
+                point(2) = z;
+
+                LMDifFunctor<double> functor(n, m, &usefulProjections);
+                Eigen::NumericalDiff<LMDifFunctor<double> > numDiff(functor);
+                Eigen::LevenbergMarquardt<Eigen::NumericalDiff<LMDifFunctor<double> > > lm(numDiff);
+                info = lm.minimize(point);
+
+                x = point(0);
+                y = point(1);
+                z = point(2);
+            }
+
+//            double Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const
+//            {
+//                double distance = -1.0;
+//                if (HasCorrespondenceInView(pointOfView))
+//                {
+//                    double dx, dy;
+//                    cv::Point2d imagePoint = GetPointInView(pointOfView);
+
+//                    cv::Point3d p(imagePoint.x, imagePoint.y, -1.0);
+//                    cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
+//                    p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
+
+//                    cv::Point2d projectedPoint = ProjectPoint(pointOfView);
+
+//                    dx = projectedPoint.x - p.x;
+//                    dy = projectedPoint.y - p.y;
+
+//                    distance = dx * dx + dy * dy;
+//                }
+//                return distance;
+//            }
+
+//            cv::Point2d Point::ProjectPoint(std::shared_ptr<PointOfView> pointOfView) const
+//            {
+//                Eigen::MatrixXd R; cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
+//                Eigen::MatrixXd T; cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
+//                T = -1 * (R * T);
+
+//                Eigen::MatrixXd X(3, 1); X(0) = x; X(1) = y; X(2) = z;
+//                Eigen::MatrixXd pp(3, 1);
+//                pp = R * X;
+//                pp += T;
+
+//                return cv::Point2d(pp(0) / pp(2), pp(1) / pp(2));
+//            }
         }
     }
 }

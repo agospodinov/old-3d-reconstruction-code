@@ -1,11 +1,11 @@
 set(VISION_INPUT_LIB_SOURCES
-    CameraInputSource.cpp
-    ImageListInputSource.cpp
+    CameraInputSource.cpp       CameraInputSource.h
+    ImageListInputSource.cpp	ImageListInputSource.h
 
-    IInputSource.cpp
+    IInputSource.cpp            IInputSource.h
 )
 
-include_directories("${PROJECT_SOURCE_DIR}/include")
+include_directories("${PROJECT_SOURCE_DIR}/lib")
 #link_directories()
 add_definitions("-std=c++11")
 

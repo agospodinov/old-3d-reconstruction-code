@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+#include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
 namespace Xu
@@ -10,18 +11,10 @@ namespace Xu
     {
         namespace Core
         {
-            SingleViewImage::SingleViewImage(const Math::Matrix &image)
-                : image(image),
-                  imageSize(Size(image.GetColumns(), image.GetRows()))
-            {
-            }
-
             SingleViewImage::SingleViewImage(const cv::Mat &image)
-                : imageSize(Size(image.size().width, image.size().height))
+                : image(image),
+                  imageSize(Size(image.size().width, image.size().height))
             {
-                cv::Mat tmp;
-                cv::cvtColor(image, tmp, CV_BGR2RGB);
-                this->image = Math::Matrix(tmp);
             }
 
             IImage::Pixel SingleViewImage::GetPixel(int x, int y) const
@@ -34,16 +27,16 @@ namespace Xu
                 }
 
                 Pixel rgb;
-                if (image.GetChannels() == 3)
+                if (HasColor())
                 {
-                    uchar r = image.Get(x, y, 0) * 255.0;
-                    uchar g = image.Get(x, y, 1) * 255.0;
-                    uchar b = image.Get(x, y, 2) * 255.0;
+                    uchar r = image.at<uchar>(y, x);
+                    uchar g = image.at<uchar>(y, x);
+                    uchar b = image.at<uchar>(y, x);
                     rgb = Pixel(r, g, b);
                 }
-                else if (image.GetChannels() == 1)
+                else
                 {
-                    uchar intensity = image.Get(x, y) * 255.0;
+                    uchar intensity = image.at<uchar>(y, x);
                     rgb = Pixel(intensity, intensity, intensity);
                 }
                 return rgb;
@@ -54,14 +47,14 @@ namespace Xu
                 return 0;
             }
 
-            Math::Matrix SingleViewImage::GetMatrix() const
+            cv::Mat SingleViewImage::GetMatrix() const
             {
                 return image;
             }
 
-            Math::Matrix SingleViewImage::GetDepthMatrix() const
+            cv::Mat SingleViewImage::GetDepthMatrix() const
             {
-                return Math::Matrix();
+                return cv::Mat();
             }
 
             std::shared_ptr<IImage> SingleViewImage::Copy() const
@@ -71,26 +64,17 @@ namespace Xu
 
             std::shared_ptr<IImage> SingleViewImage::ApplyMask(const IImage::Mask &mask) const
             {
-                Math::Matrix zeroMatrix = Math::Matrix::Zeros(image.GetRows(), image.GetColumns());
-                std::shared_ptr<IImage> maskedImage(new SingleViewImage(zeroMatrix));
-
-                for (int i = 0; i < GetSize().width; i++)
-                {
-                    for (int j = 0; j < GetSize().height; j++)
-                    {
-                        if (static_cast<uchar>(mask.GetMask().Get(i, j)) == 1)
-                        {
-                            maskedImage->GetMatrix().Set(i, j, image.Get(i, j));
-                        }
-                    }
-                }
+//                Math::LinearAlgebra::Matrix zeroMatrix = Math::LinearAlgebra::Matrix::Zeros(image.GetRows(), image.GetColumns());
+//                std::shared_ptr<IImage> maskedImage(new SingleViewImage(zeroMatrix));
+                cv::Mat masked; image.copyTo(masked, mask.GetMask());
+                std::shared_ptr<IImage> maskedImage(std::make_shared<SingleViewImage>(masked));
 
                 return maskedImage;
             }
 
             bool SingleViewImage::HasColor() const
             {
-                return (image.GetChannels() == 3);
+                return (image.channels() == 3);
             }
 
             bool SingleViewImage::HasDepth() const
@@ -98,16 +82,9 @@ namespace Xu
                 return false;
             }
 
-            cv::Mat SingleViewImage::ToOpenCVMat() const
-            {
-                cv::Mat result;
-                GetMatrix().ToCvMat().convertTo(result, CV_8UC3, 255.0);
-                return result;
-            }
-
             void SingleViewImage::ClearMemory()
             {
-                image.Release();
+                image.release();
             }
 
             IImage::Size SingleViewImage::GetSize() const

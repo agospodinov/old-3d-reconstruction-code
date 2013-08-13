@@ -30,7 +30,7 @@ namespace Xu
                 std::cout << "Running static object detector..." << std::endl;
                 std::vector<Xu::Core::Object> objects;
 
-                cv::Mat image = data.GetImage()->ToOpenCVMat();
+                cv::Mat image = data.GetImage()->GetMatrix();
 
                 cv::resize(image, image, cv::Size(), 0.2, 0.2);
                 cv::Mat tmp; cv::cvtColor(image, tmp, CV_RGB2BGRA, 4);

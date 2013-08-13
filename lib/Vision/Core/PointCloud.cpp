@@ -10,20 +10,20 @@ namespace Xu
         {
 
             PointCloud::PointCloud()
-                : pclPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>())
+//                : pclPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>())
             {
             }
 
             void PointCloud::AddPoint(const Point &point)
             {
                 points.push_back(point);
-                pclPointCloud->push_back(point.GetPCLPoint());
+//                pclPointCloud->push_back(point.GetPCLPoint());
             }
 
             void PointCloud::ReserveSpace(const size_t &newSize)
             {
                 points.reserve(newSize);
-                pclPointCloud->points.reserve(newSize);
+//                pclPointCloud->points.reserve(newSize);
             }
 
             int PointCloud::Size() const
@@ -39,7 +39,7 @@ namespace Xu
             void PointCloud::Clear()
             {
                 points.clear();
-                pclPointCloud->clear();
+//                pclPointCloud->clear();
             }
 
             const std::vector<Point> &PointCloud::GetPoints() const
@@ -47,12 +47,12 @@ namespace Xu
                 return points;
             }
 
-            pcl::PointCloud<pcl::PointXYZRGB>::Ptr PointCloud::GetPCLPointCloud() const
-            {
-                return pclPointCloud;
-            }
+//            pcl::PointCloud<pcl::PointXYZRGB>::Ptr PointCloud::GetPCLPointCloud() const
+//            {
+//                return pclPointCloud;
+//            }
 
-            PointCloud::Partial::Partial(std::shared_ptr<PointCloud> pointCloud, std::vector<int> indices)
+            PointCloud::Partial::Partial(const std::shared_ptr<PointCloud> &pointCloud, const std::vector<int> &indices)
                 : pointCloud(pointCloud),
                   indices(indices)
             {

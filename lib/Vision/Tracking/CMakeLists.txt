@@ -1,5 +1,5 @@
 set(RECOGNITION_LIB_SOURCES
-    IObjectTracker.cpp
+    IObjectTracker.cpp		IObjectTracker.h
 )
 
 find_package(OpenCV REQUIRED)
@@ -14,7 +14,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-include_directories("${PROJECT_SOURCE_DIR}/include" ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIR} ${Boost_INCLUDE_DIR})
+include_directories(${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIR} ${Boost_INCLUDE_DIR})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS} "-std=c++11")
 

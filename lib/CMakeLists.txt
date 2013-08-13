@@ -1,3 +1,6 @@
 add_subdirectory(Core)
+add_subdirectory(Framework)
 add_subdirectory(Math)
+add_subdirectory(Language)
 add_subdirectory(Vision)
+add_subdirectory(Audio)

@@ -7,6 +7,7 @@
 #include "Vision/Core/Feature.h"
 #include "Vision/Core/FeatureSet.h"
 #include "Vision/Core/PointOfView.h"
+#include "Vision/Core/Scene.h"
 
 namespace Xu
 {
@@ -15,179 +16,25 @@ namespace Xu
         namespace Reconstruction
         {
             BundleAdjuster::BundleAdjuster()
+                : adjustedCameras(0),
+                  adjustedPoints(0)
             {
             }
 
-            BundleAdjuster::BundleAdjuster(const std::shared_ptr<Core::FeatureSet> &featureSet)
-                : features(featureSet),
-                  adjustedPoints(0),
-                  adjustedCameras(0)
+            BundleAdjuster::BundleAdjuster(Core::Scene &scene)
+                : scene(&scene),
+                  adjustedCameras(0),
+                  adjustedPoints(0)
             {
             }
 
             void BundleAdjuster::EstimateCameraPose(std::shared_ptr<Core::PointOfView> &pointOfView)
             {
                 SbaParameters params = PrepareData(MOTION_ONLY);
+                // can this leak? perhaps use weak_ptrs?
                 params.pointsOfView.push_back(pointOfView);
 
                 Run(0, params.pointsOfView.size() - 1, params);
-
-//                for (int i = 0; i < features->Size(); i++)
-//                {
-//                    std::shared_ptr<Core::Feature> feature = features->GetFeature(i);
-//                    if (feature->IsTriangulated())
-//                    {
-//                        pointsx.push_back(feature);
-//                    }
-//                }
-//                int pointCount = pointsx.size();
-
-//                std::vector<std::shared_ptr<Core::PointOfView> > pointsOfView;
-//                {
-//                    std::vector<std::shared_ptr<Core::PointOfView> > existingPointsOfView = features->GetPointsOfView();
-//                    for (int i = 0; i < existingPointsOfView.size(); i++)
-//                    {
-//                        std::shared_ptr<Core::PointOfView> pointOfView = existingPointsOfView.at(i);
-//                        if (pointOfView->GetCameraParameters().IsPoseDetermined())
-//                        {
-//                            pointsOfView.push_back(pointOfView);
-//                        }
-//                    }
-//                }
-//                int cameraCount = pointsOfView.size();
-
-
-//                char *visibility = new char[pointCount * (cameraCount + 1)];
-//                double *projections = new double[2 * pointCount * (cameraCount + 1)];
-
-//                for (int i = 0; i < pointCount * (cameraCount + 1); i++)
-//                {
-//                    visibility[i] = 0;
-
-//                    projections[2 * i + 0] = 0;
-//                    projections[2 * i + 1] = 0;
-//                }
-
-//                for (int i = 0; i < cameraCount; i++)
-//                {
-//                    std::shared_ptr<Core::PointOfView> donePointOfView = pointsOfView.at(i);
-//                    for (int j = 0; j < pointCount; j++)
-//                    {
-//                        std::shared_ptr<Core::Feature> feature = pointsx.at(j);
-//                        if (feature->HasCorrespondenceInView(donePointOfView))
-//                        {
-//                            visibility[j * cameraCount + i] = 1;
-//                            cv::Point2d point = feature->GetPointInView(donePointOfView);
-//                            projections[2 * j * cameraCount + 2 * i + 0] = point.x;
-//                            projections[2 * j * cameraCount + 2 * i + 1] = point.y;
-//                        }
-//                    }
-//                }
-
-//                for (int j = 0; j < pointCount; j++)
-//                {
-//                    std::shared_ptr<Core::Feature> feature = pointsx.at(j);
-//                    if (feature->HasCorrespondenceInView(pointOfView))
-//                    {
-//                        visibility[j * cameraCount + cameraCount] = 1;
-//                        cv::Point2d point = feature->GetPointInView(pointOfView);
-//                        projections[2 * j * cameraCount + 2 * cameraCount + 0] = point.x;
-//                        projections[2 * j * cameraCount + 2 * cameraCount + 1] = point.y;
-//                    }
-//                }
-
-//                int cameraParametersCount = 6;
-//                int pointParametersCount = 3;
-//                int parametersCount = (cameraCount + 1) * cameraParametersCount + pointCount * pointParametersCount;
-
-//                double *parameters = new double[parametersCount];
-
-//                for (int i = 0; i < cameraCount; i++)
-//                {
-//                    std::shared_ptr<Core::PointOfView> donePointOfView = pointsOfView.at(i);
-//                    cv::Mat rotationMatrix = donePointOfView->GetCameraParameters().GetRotationMatrix();
-//                    cv::Mat rotation; cv::Rodrigues(rotationMatrix, rotation);
-//                    cv::Mat translation = donePointOfView->GetCameraParameters().GetTranslationMatrix();
-
-//                    parameters[i * cameraParametersCount + 0] = translation.at<double>(0);
-//                    parameters[i * cameraParametersCount + 1] = translation.at<double>(1);
-//                    parameters[i * cameraParametersCount + 2] = translation.at<double>(2);
-
-//                    parameters[i * cameraParametersCount + 3] = rotation.at<double>(0);
-//                    parameters[i * cameraParametersCount + 4] = rotation.at<double>(1);
-//                    parameters[i * cameraParametersCount + 5] = rotation.at<double>(2);
-//                }
-
-//                // TODO rename
-//                cv::Mat rotationMatrixx = pointOfView->GetCameraParameters().GetRotationMatrix();
-//                cv::Mat rotationx; cv::Rodrigues(rotationMatrixx, rotationx);
-//                cv::Mat translation = pointOfView->GetCameraParameters().GetTranslationMatrix();
-
-//                parameters[cameraCount * cameraParametersCount + 0] = translation.at<double>(0);
-//                parameters[cameraCount * cameraParametersCount + 1] = translation.at<double>(1);
-//                parameters[cameraCount * cameraParametersCount + 2] = translation.at<double>(2);
-
-//                parameters[cameraCount * cameraParametersCount + 3] = rotationx.at<double>(0);
-//                parameters[cameraCount * cameraParametersCount + 4] = rotationx.at<double>(1);
-//                parameters[cameraCount * cameraParametersCount + 5] = rotationx.at<double>(2);
-
-//                int pointsStartIndex = (cameraCount + 1) * cameraParametersCount;
-
-//                for (int i = 0; i < pointCount; i++)
-//                {
-//                    std::shared_ptr<Core::Feature> feature = pointsx.at(i);
-
-//                    parameters[pointsStartIndex + i * pointParametersCount + 0] = feature->GetX();
-//                    parameters[pointsStartIndex + i * pointParametersCount + 1] = feature->GetY();
-//                    parameters[pointsStartIndex + i * pointParametersCount + 2] = feature->GetZ();
-//                }
-
-//                double options[SBA_OPTSSZ];
-//                options[0] = SBA_INIT_MU;
-//                options[1] = SBA_STOP_THRESH;
-//                options[2] = SBA_STOP_THRESH;
-//                options[3] = SBA_STOP_THRESH;
-//                options[4] = 0.0;
-//                double info[SBA_INFOSZ];
-
-//                sba_mot_levmar(pointCount,
-//                               cameraCount + 1,
-//                               cameraCount,
-//                               visibility,
-//                               parameters,
-//                               cameraParametersCount,
-//                               projections,
-//                               NULL, // covariance matrix
-//                               2,
-//                               ProjectPointMotionOnly,
-//                               NULL, // jacobian calculation function
-//                               (void *) this, // additional data
-//                               150, // max iterations
-//                               3, // verbosity level
-//                               options,
-//                               info);
-
-//                delete[] visibility;
-//                delete[] projections;
-
-//                cv::Mat translationMatrix(3, 1, CV_64FC1);
-//                translationMatrix.at<double>(0) = parameters[cameraCount * cameraParametersCount + 0];
-//                translationMatrix.at<double>(1) = parameters[cameraCount * cameraParametersCount + 1];
-//                translationMatrix.at<double>(2) = parameters[cameraCount * cameraParametersCount + 2];
-
-//                cv::Mat rotation(3, 1, CV_64FC1);
-//                rotation.at<double>(0) = parameters[cameraCount * cameraParametersCount + 3];
-//                rotation.at<double>(1) = parameters[cameraCount * cameraParametersCount + 4];
-//                rotation.at<double>(2) = parameters[cameraCount * cameraParametersCount + 5];
-
-//                cv::Mat rotationMatrix(3, 3, CV_64FC1);
-//                cv::Rodrigues(rotation, rotationMatrix);
-
-//                pointOfView->GetCameraParameters().SetRotationMatrix(rotationMatrix);
-//                pointOfView->GetCameraParameters().SetTranslationMatrix(translationMatrix);
-
-
-//                delete[] parameters;
             }
 
             void BundleAdjuster::RunOnNewData()
@@ -202,33 +49,33 @@ namespace Xu
                 Run(0, 0, params);
             }
 
-            void BundleAdjuster::Reset(const std::shared_ptr<Core::FeatureSet> &featureSet)
+            void BundleAdjuster::Reset(Core::Scene &scene)
             {
-                this->features = featureSet;
+                this->scene = &scene;
             }
 
             BundleAdjuster::SbaParameters BundleAdjuster::PrepareData(SbaMode mode)
             {
                 SbaParameters params(this, mode);
 
-                for (int i = 0; i < features->Size(); i++)
+                for (auto it = scene->GetFeatures()->Begin(); it != scene->GetFeatures()->End(); it++)
                 {
-                    std::shared_ptr<Core::Feature> feature = features->GetFeature(i);
-                    if (feature->IsTriangulated())
+                    Core::Feature &feature = *it;
+                    if (feature.IsTriangulated())
                     {
-                        params.triangulatedPoints.push_back(feature);
+                        params.triangulatedPoints.push_back(&feature);
                     }
                 }
 
-                std::vector<std::shared_ptr<Core::PointOfView> > existingPointsOfView = features->GetPointsOfView();
-                for (int i = 0; i < existingPointsOfView.size(); i++)
-                {
-                    std::shared_ptr<Core::PointOfView> pointOfView = existingPointsOfView.at(i);
-                    if (pointOfView->GetCameraParameters().IsPoseDetermined())
-                    {
-                        params.pointsOfView.push_back(pointOfView);
-                    }
-                }
+                // FIXME
+//                std::vector<std::shared_ptr<Core::PointOfView> > existingPointsOfView = features->GetPointsOfView();
+//                for (const std::shared_ptr<Core::PointOfView> &pointOfView : existingPointsOfView)
+//                {
+//                    if (pointOfView->GetCameraParameters().IsPoseDetermined())
+//                    {
+//                        params.pointsOfView.push_back(pointOfView);
+//                    }
+//                }
 
                 return params;
             }
@@ -262,16 +109,18 @@ namespace Xu
 
                 for (int i = 0; i < cameraCount; i++)
                 {
-                    std::shared_ptr<Core::PointOfView> pointOfView = params.pointsOfView.at(i);
+                    const std::shared_ptr<Core::PointOfView> &pointOfView = params.pointsOfView.at(i);
                     for (int j = 0; j < pointCount; j++)
                     {
-                        std::shared_ptr<Core::Feature> feature = params.triangulatedPoints.at(j);
-                        if (feature->HasCorrespondenceInView(pointOfView))
+                        Core::Feature *feature = params.triangulatedPoints.at(j);
+
+                        boost::optional<Core::Projection> projection = feature->GetProjection(pointOfView);
+                        if (projection.is_initialized())
                         {
                             visibility[j * cameraCount + i] = 1;
-                            cv::Point2d point = feature->GetPointInView(pointOfView);
-                            projections[2 * j * cameraCount + 2 * i + 0] = point.x;
-                            projections[2 * j * cameraCount + 2 * i + 1] = point.y;
+
+                            projections[2 * j * cameraCount + 2 * i + 0] = projection->GetX();
+                            projections[2 * j * cameraCount + 2 * i + 1] = projection->GetY();
                         }
                     }
                 }
@@ -284,7 +133,7 @@ namespace Xu
 
                 for (int i = 0; i < cameraCount; i++)
                 {
-                    std::shared_ptr<Core::PointOfView> pointOfView = params.pointsOfView.at(i);
+                    const std::shared_ptr<Core::PointOfView> &pointOfView = params.pointsOfView.at(i);
                     cv::Mat rotationMatrix = pointOfView->GetCameraParameters().GetRotationMatrix();
                     cv::Mat rotation; cv::Rodrigues(rotationMatrix, rotation);
                     cv::Mat translation = pointOfView->GetCameraParameters().GetTranslationMatrix();
@@ -304,7 +153,7 @@ namespace Xu
 
                 for (int i = 0; i < pointCount; i++)
                 {
-                    std::shared_ptr<Core::Feature> feature = params.triangulatedPoints.at(i);
+                    const Core::Feature *feature = params.triangulatedPoints.at(i);
 
                     parameters[pointsStartIndex + i * pointParametersCount + 0] = feature->GetX();
                     parameters[pointsStartIndex + i * pointParametersCount + 1] = feature->GetY();
@@ -383,7 +232,7 @@ namespace Xu
 
                 for (int i = startingCamera; i < cameraCount; i++)
                 {
-                    std::shared_ptr<Core::PointOfView> pointOfView = params.pointsOfView.at(i);
+                    std::shared_ptr<Core::PointOfView> &pointOfView = params.pointsOfView.at(i);
 
                     cv::Mat translationMatrix(3, 1, CV_64FC1);
                     translationMatrix.at<double>(0) = parameters[i * cameraParametersCount + 0];
@@ -409,7 +258,7 @@ namespace Xu
 
                 for (int i = startingPoint; i < pointCount; i++)
                 {
-                    std::shared_ptr<Core::Feature> feature = params.triangulatedPoints.at(i);
+                    Core::Feature *feature = params.triangulatedPoints.at(i);
 
                     double x = parameters[pointsStartIndex + i * pointParametersCount + 0];
                     double y = parameters[pointsStartIndex + i * pointParametersCount + 1];

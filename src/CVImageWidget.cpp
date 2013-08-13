@@ -10,7 +10,7 @@ CVImageWidget::CVImageWidget(QWidget *parent) :
 
 void CVImageWidget::ShowImage(const std::unique_ptr<Xu::Vision::Core::IImage> &image)
 {
-    cv::Mat mat = image->ToOpenCVMat();
+    cv::Mat mat = image->GetMatrix();
 
     this->image = QImage(mat.data,
                          mat.size().width,
@@ -23,7 +23,7 @@ void CVImageWidget::ShowImage(const std::unique_ptr<Xu::Vision::Core::IImage> &i
 
 void CVImageWidget::ShowImage(const std::shared_ptr<Xu::Vision::Core::IImage> &image)
 {
-    cv::Mat mat = image->ToOpenCVMat();
+    cv::Mat mat = image->GetMatrix();
 
     this->image = QImage(mat.data,
                          mat.size().width,

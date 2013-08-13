@@ -1,6 +1,7 @@
 #include "Vision/Reconstruction/SURFGPUFeatureMatcher.h"
 
 #include <algorithm>
+#include <functional>
 #include <utility>
 
 #include <opencv2/calib3d/calib3d.hpp>
@@ -15,10 +16,10 @@ namespace Xu
         namespace Reconstruction
         {
 
-            SURFGPUFeatureMatcher::SURFGPUFeatureMatcher(int matchNLast, int keepMLastOnGPU)
-                : AbstractFeatureMatcher(matchNLast, keepMLastOnGPU),
-                  imageKeypointsGPU(std::vector<cv::gpu::GpuMat>(keepMLastOnGPU)),
-                  imageDescriptorsGPU(std::vector<cv::gpu::GpuMat>(keepMLastOnGPU))
+            SURFGPUFeatureMatcher::SURFGPUFeatureMatcher(Core::Scene &scene, int matchNLast, int keepMLastOnGPU)
+                : AbstractFeatureMatcher(scene, matchNLast),
+                  imageKeypointsGPU(keepMLastOnGPU),
+                  imageDescriptorsGPU(keepMLastOnGPU)
             {
             }
 
@@ -26,28 +27,50 @@ namespace Xu
             {
             }
 
-            void SURFGPUFeatureMatcher::DetectAlgorithmSpecificFeatures(int pointOfViewIndex)
+            void SURFGPUFeatureMatcher::DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView)
             {
-                const std::shared_ptr<Core::PointOfView> &pointOfView = GetPointOfView(pointOfViewIndex);
                 cv::gpu::GpuMat image;
 
-                cv::Mat newImage;
-                cv::cvtColor(pointOfView->GetImage()->ToOpenCVMat(), newImage, CV_BGR2GRAY);
+                if (pointOfView->GetImage()->HasColor())
+                {
+                    cv::Mat grayscale;
+                    cv::cvtColor(pointOfView->GetImage()->GetMatrix(), grayscale, CV_BGR2GRAY);
+                    image.upload(grayscale);
+                }
+                else
+                {
+                    image.upload(pointOfView->GetImage()->GetMatrix());
+                }
 
-                image.upload(newImage);
-
+                cv::gpu::GpuMat imageKeypoints;
+                cv::gpu::GpuMat imageDescriptors;
                 featureExtractor(image,
                                  cv::gpu::GpuMat(),
-                                 imageKeypointsGPU[GetCurrentImageIndex() % GetKeepMLastOnGPU()],
-                        imageDescriptorsGPU[GetCurrentImageIndex() % GetKeepMLastOnGPU()]);
+                                 imageKeypoints,
+                                 imageDescriptors);
 
-                pointOfView->GetFeatures().resize(imageKeypointsGPU[GetCurrentImageIndex() % GetKeepMLastOnGPU()].cols);
+                imageKeypointsGPU.push_back(std::make_pair(pointOfView, imageKeypoints));
+                imageDescriptorsGPU.push_back(std::make_pair(pointOfView, imageDescriptors));
             }
 
-            AbstractFeatureMatcher::MatchList SURFGPUFeatureMatcher::MatchAlgorithmSpecificFeatures(int leftPOVIndex, int rightPOVIndex)
+            std::vector<AbstractFeatureMatcher::Match> SURFGPUFeatureMatcher::MatchAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV)
             {
-                const cv::gpu::GpuMat &imageDescriptors1 = imageDescriptorsGPU[leftPOVIndex % GetKeepMLastOnGPU()];
-                const cv::gpu::GpuMat &imageDescriptors2 = imageDescriptorsGPU[rightPOVIndex % GetKeepMLastOnGPU()];
+                auto matchPOV = [](const std::shared_ptr<Core::PointOfView> &pointOfView, const std::pair<std::shared_ptr<Core::PointOfView>, cv::gpu::GpuMat> &pair)
+                {
+                    return pair.first == pointOfView;
+                };
+
+                using std::placeholders::_1;
+                auto leftImageDescriptorsIt = std::find_if(imageDescriptorsGPU.begin(), imageDescriptorsGPU.end(), std::bind(matchPOV, leftPOV, _1));
+                auto rightImageDescriptorsIt = std::find_if(imageDescriptorsGPU.begin(), imageDescriptorsGPU.end(), std::bind(matchPOV, rightPOV, _1));
+
+                if (leftImageDescriptorsIt == imageDescriptorsGPU.end() || rightImageDescriptorsIt == imageDescriptorsGPU.end())
+                {
+                    return std::vector<AbstractFeatureMatcher::Match>();
+                }
+
+                const cv::gpu::GpuMat &imageDescriptors1 = leftImageDescriptorsIt->second;
+                const cv::gpu::GpuMat &imageDescriptors2 = rightImageDescriptorsIt->second;
 
                 if(imageDescriptors1.empty() || imageDescriptors2.empty())
                 {
@@ -65,39 +88,32 @@ namespace Xu
                 matcher.knnMatchSingle(imageDescriptors1, imageDescriptors2, trainIdx, distance, allDist, 2);
                 matcher.knnMatchDownload(trainIdx, distance, knnMatches);
 
+                cv::Mat keypointsLeft(std::find_if(imageKeypointsGPU.begin(), imageKeypointsGPU.end(), std::bind(matchPOV, leftPOV, _1))->second);
+                cv::Mat keypointsRight(std::find_if(imageKeypointsGPU.begin(), imageKeypointsGPU.end(), std::bind(matchPOV, rightPOV, _1))->second);
+
                 for (int k = 0; k < knnMatches.size(); k++)
                 {
-                    if (knnMatches[k][0].distance / knnMatches[k][1].distance < 0.7 /*0.6*/)
+                    if (knnMatches[k][0].distance / knnMatches[k][1].distance < 0.6 /*0.7*/)
                     {
                         cv::DMatch dMatch = knnMatches[k][0];
 
-                        cv::Mat keypointsLeft(imageKeypointsGPU[leftPOVIndex]);
-                        cv::Mat keypointsRight(imageKeypointsGPU[rightPOVIndex]);
+                        Core::Projection leftProjection(
+                                    static_cast<double>(keypointsLeft.ptr<float>(cv::gpu::SURF_GPU::X_ROW)[dMatch.queryIdx] - leftPOV->GetImage()->GetSize().width),
+                                    static_cast<double>(keypointsLeft.ptr<float>(cv::gpu::SURF_GPU::Y_ROW)[dMatch.queryIdx] - leftPOV->GetImage()->GetSize().height),
+                                    leftPOV, true);
+                        Core::Projection rightProjection(
+                                    static_cast<double>(keypointsRight.ptr<float>(cv::gpu::SURF_GPU::X_ROW)[dMatch.trainIdx] - rightPOV->GetImage()->GetSize().width),
+                                    static_cast<double>(keypointsRight.ptr<float>(cv::gpu::SURF_GPU::Y_ROW)[dMatch.trainIdx] - rightPOV->GetImage()->GetSize().height),
+                                    rightPOV, true);
 
-                        cv::Point2d pointInLeftImage(
-                                    static_cast<double>(keypointsLeft.ptr<float>(cv::gpu::SURF_GPU::X_ROW)[dMatch.queryIdx]),
-                                static_cast<double>(keypointsLeft.ptr<float>(cv::gpu::SURF_GPU::Y_ROW)[dMatch.queryIdx]));
-                        cv::Point2d pointInRightImage(
-                                    static_cast<double>(keypointsRight.ptr<float>(cv::gpu::SURF_GPU::X_ROW)[dMatch.trainIdx]),
-                                static_cast<double>(keypointsRight.ptr<float>(cv::gpu::SURF_GPU::Y_ROW)[dMatch.trainIdx]));
 
-
-                        AbstractFeatureMatcher::Match match(dMatch.queryIdx, dMatch.trainIdx, pointInLeftImage, pointInRightImage);
+                        AbstractFeatureMatcher::Match match(dMatch.queryIdx, dMatch.trainIdx, leftProjection, rightProjection);
                         matches.push_back(match);
                     }
                 }
 
-                //        matcher.match(imageDescriptors1, imageDescriptors2, matches);
-
-
-                //            cout << "KNNMatches size: " << knnMatches.size() << endl;
-                // refer to the documentation of imageMatches in the header file
-                std::pair<int, int> imageIndices(leftPOVIndex, rightPOVIndex);
-                imageMatches[imageIndices] = matches;
-
                 return matches;
             }
-
         }
     }
 }

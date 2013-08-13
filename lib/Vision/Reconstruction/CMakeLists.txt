@@ -1,14 +1,14 @@
 set(RECONSTRUCTION_LIB_SOURCES
-    AbstractFeatureMatcher.cpp
-    SURFGPUFeatureMatcher.cpp
-    GFTTFeatureMatcher.cpp
-    AbstractDenseMatcher.cpp
-    DenseMatcher.cpp
-    SceneReconstructor.cpp
-    BundleAdjuster.cpp
-    CameraCalibrator.cpp
+    AbstractFeatureMatcher.cpp		AbstractFeatureMatcher.h
+    SURFGPUFeatureMatcher.cpp		SURFGPUFeatureMatcher.h
+    GFTTFeatureMatcher.cpp          GFTTFeatureMatcher.h
+    AbstractDenseMatcher.cpp		AbstractDenseMatcher.h
+    DenseMatcher.cpp                DenseMatcher.h
+    SceneReconstructor.cpp          SceneReconstructor.h
+    BundleAdjuster.cpp              BundleAdjuster.h
+    CameraCalibrator.cpp            CameraCalibrator.h
 
-    IImageMatcher.cpp
+    IImageMatcher.cpp               IImageMatcher.h
 )
 
 find_package(OpenCV REQUIRED)
@@ -23,7 +23,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-include_directories("${PROJECT_SOURCE_DIR}/include" ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIR} ${Boost_INCLUDE_DIR} "${PROJECT_SOURCE_DIR}/vendor/include")
+include_directories("${PROJECT_SOURCE_DIR}/lib" ${PCL_INCLUDE_DIRS} ${Eigen3_INCLUDE_DIR} ${Boost_INCLUDE_DIR} "${PROJECT_SOURCE_DIR}/vendor/include")
 link_directories(${PCL_LIBRARY_DIRS})
 
 if(WIN32)

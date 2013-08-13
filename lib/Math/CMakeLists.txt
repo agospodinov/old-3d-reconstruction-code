@@ -1,13 +1,11 @@
-set(MATH_LIB_SOURCES
-    Matrix.cpp
-)
-
-find_package(Eigen3 REQUIRED)
-
-include_directories("${PROJECT_SOURCE_DIR}/include" ${Eigen3_INCLUDE_DIR})
+include_directories("${PROJECT_SOURCE_DIR}/lib")
 #link_directories()
 add_definitions("-std=c++11")
 
-add_library(Math SHARED ${MATH_LIB_SOURCES})
+add_subdirectory(Core)
+add_subdirectory(LinearAlgebra)
+add_subdirectory(Calculus)
+
+add_library(Math SHARED $<TARGET_OBJECTS:MathCore> $<TARGET_OBJECTS:LinearAlgebra> $<TARGET_OBJECTS:Calculus>)
 
 #target_link_libraries(Math ...)

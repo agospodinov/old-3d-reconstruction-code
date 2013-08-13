@@ -11,25 +11,22 @@ namespace Xu
         namespace Reconstruction
         {
 
-            GFTTFeatureMatcher::GFTTFeatureMatcher(int minimumFeatureThreshold, float qualityLevel)
-                : AbstractFeatureMatcher(1, 0),
+            GFTTFeatureMatcher::GFTTFeatureMatcher(Core::Scene &scene, int minimumFeatureThreshold, float qualityLevel)
+                : AbstractFeatureMatcher(scene, 1),
                   minimumFeatureThreshold(minimumFeatureThreshold),
                   qualityLevel(qualityLevel)
             {
             }
 
-            void GFTTFeatureMatcher::DetectAlgorithmSpecificFeatures(int pointOfViewIndex)
+            void GFTTFeatureMatcher::DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView)
             {
-                const std::shared_ptr<Core::PointOfView> &pointOfView = GetPointOfView(pointOfViewIndex);
-
                 currentGray.release();
-                cv::cvtColor(pointOfView->GetImage()->ToOpenCVMat(), currentGray, cv::COLOR_BGR2GRAY);
+                cv::cvtColor(pointOfView->GetImage()->GetMatrix(), currentGray, cv::COLOR_BGR2GRAY);
 
                 if (lastCorners.size() < minimumFeatureThreshold)
                 {
                     std::vector<cv::Point2f> currentCorners;
                     cv::goodFeaturesToTrack(currentGray, currentCorners, 1000, qualityLevel, 10);
-                    pointOfView->GetFeatures().resize(currentCorners.size());
                     this->currentCorners = std::move(currentCorners);
                 }
                 else
@@ -70,10 +67,12 @@ namespace Xu
 
                         matches.push_back(Match(match.first,
                                                 match.second,
-                                                cv::Point2d(static_cast<double>(cornerInLastImage.x),
-                                                            static_cast<double>(cornerInLastImage.y)),
-                                                cv::Point2d(static_cast<double>(cornerInCurrentImage.x),
-                                                            static_cast<double>(cornerInCurrentImage.y))));
+                                                Core::Projection(static_cast<double>(cornerInLastImage.x) - lastPOV->GetImage()->GetSize().width,
+                                                                 static_cast<double>(cornerInLastImage.y) - lastPOV->GetImage()->GetSize().height,
+                                                                 lastPOV, true),
+                                                Core::Projection(static_cast<double>(cornerInCurrentImage.x) - pointOfView->GetImage()->GetSize().width,
+                                                                 static_cast<double>(cornerInCurrentImage.y) - pointOfView->GetImage()->GetSize().height,
+                                                                 pointOfView, true)));
                     }
 
                     if (currentCorners.size() < minimumFeatureThreshold)
@@ -103,42 +102,14 @@ namespace Xu
                             }
                         }
                     }
-
-//                    matches.clear();
-//                    for (int i = 0; i < status.size(); i++)
-//                    {
-//                        if (status[i] == 1)
-//                        {
-//                            cv::Point2f cornerInLastImage = lastCorners.at(i);
-//                            cv::Point2f cornerInCurrentImage = currentCorners.at(i);
-
-//                            // There is a problem here... If the sizes of the current and the previous image differ
-//                            // and the point is outside the boundaries of the last image, but not outside the current image
-//                            // may cause an out_of_range exception to be thrown when creating features.
-//                            if (cornerInLastImage.x < 0 || cornerInLastImage.x > pointOfView->GetImage()->GetSize().width ||
-//                                    cornerInLastImage.y < 0 || cornerInLastImage.y > pointOfView->GetImage()->GetSize().width ||
-//                                    cornerInCurrentImage.x < 0 || cornerInCurrentImage.x > pointOfView->GetImage()->GetSize().width ||
-//                                    cornerInCurrentImage.y < 0 || cornerInCurrentImage.y > pointOfView->GetImage()->GetSize().height)
-//                            {
-//                                continue;
-//                            }
-
-//                            matches.push_back(Match(i,
-//                                                    i,
-//                                                    cv::Point2d(static_cast<double>(cornerInLastImage.x),
-//                                                                static_cast<double>(cornerInLastImage.y)),
-//                                                    cv::Point2d(static_cast<double>(cornerInCurrentImage.x),
-//                                                                static_cast<double>(cornerInCurrentImage.y))));
-//                        }
-//                    }
-                    pointOfView->GetFeatures().resize(currentCorners.size());
                 }
 
                 lastGray = currentGray;
                 lastCorners = currentCorners;
+                lastPOV = pointOfView;
             }
 
-            AbstractFeatureMatcher::MatchList GFTTFeatureMatcher::MatchAlgorithmSpecificFeatures(int leftPOVIndex, int rightPOVIndex)
+            std::vector<AbstractFeatureMatcher::Match> GFTTFeatureMatcher::MatchAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV)
             {
                 return matches;
             }
