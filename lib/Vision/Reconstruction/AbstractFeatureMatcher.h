@@ -34,21 +34,17 @@ namespace Xu
                 protected:
                     struct Match
                     {
-                        Match(uint leftFeatureIndex, uint rightFeatureIndex, const Core::Projection &leftPoint, const Core::Projection &rightPoint)
+                        Match(uint leftFeatureIndex, uint rightFeatureIndex)
                             : leftFeatureIndex(leftFeatureIndex),
-                              rightFeatureIndex(rightFeatureIndex),
-                              leftPoint(leftPoint),
-                              rightPoint(rightPoint)
+                              rightFeatureIndex(rightFeatureIndex)
                         {
                         }
 
                         uint leftFeatureIndex;
                         uint rightFeatureIndex;
-                        Core::Projection leftPoint;
-                        Core::Projection rightPoint;
                     };
 
-                    virtual void DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView) = 0;
+                    virtual std::vector<Core::Projection> DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView) = 0;
                     virtual std::vector<Match> MatchAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV) = 0;
 
                 private:
@@ -56,17 +52,7 @@ namespace Xu
 
                     Core::Scene * const scene;
 
-                    /**
-                     * @brief The last N points of view.
-                     *
-                     * The index of the n'th last point of view is
-                     * nthLastImageIndex % matchNLast and the current one is
-                     * currentImageIndex % matchNLast.
-                     *
-                     * @note This class does not own the points of view,
-                     * therefore it is safe to keep pointers to them.
-                     */
-                    boost::circular_buffer<std::shared_ptr<Core::PointOfView> > previousPointsOfView;
+                    boost::circular_buffer<std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > > previousPointsOfView;
             };
 
         }

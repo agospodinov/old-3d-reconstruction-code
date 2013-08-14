@@ -18,8 +18,10 @@ namespace Xu
             {
             }
 
-            void GFTTFeatureMatcher::DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView)
+            std::vector<Core::Projection> GFTTFeatureMatcher::DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView)
             {
+                std::vector<Core::Projection> projections;
+
                 currentGray.release();
                 cv::cvtColor(pointOfView->GetImage()->GetMatrix(), currentGray, cv::COLOR_BGR2GRAY);
 
@@ -28,13 +30,20 @@ namespace Xu
                     std::vector<cv::Point2f> currentCorners;
                     cv::goodFeaturesToTrack(currentGray, currentCorners, 1000, qualityLevel, 10);
                     this->currentCorners = std::move(currentCorners);
+
+                    for (const cv::Point2f &point : this->currentCorners)
+                    {
+                        projections.push_back(Core::Projection(static_cast<double>(point.x) - pointOfView->GetImage()->GetSize().width,
+                                                               static_cast<double>(point.y) - pointOfView->GetImage()->GetSize().height,
+                                                               pointOfView, true));
+                    }
                 }
                 else
                 {
-                    status.clear();
-                    errors.clear();
+                    std::vector<uchar> status;
                     currentCorners.clear();
-                    cv::calcOpticalFlowPyrLK(lastGray, currentGray, lastCorners, currentCorners, status, errors);
+                    // We could use the errors as a distance when adding new points for the algorithm to track
+                    cv::calcOpticalFlowPyrLK(lastGray, currentGray, lastCorners, currentCorners, status, cv::noArray());
 
                     std::vector<std::pair<int, int> > matchesx; // FIXME rename
                     int index = 0;
@@ -62,17 +71,13 @@ namespace Xu
                     matches.clear();
                     for (const std::pair<int, int> &match : matchesx)
                     {
-                        cv::Point2f cornerInLastImage = lastCorners.at(match.first);
                         cv::Point2f cornerInCurrentImage = currentCorners.at(match.second);
 
-                        matches.push_back(Match(match.first,
-                                                match.second,
-                                                Core::Projection(static_cast<double>(cornerInLastImage.x) - lastPOV->GetImage()->GetSize().width,
-                                                                 static_cast<double>(cornerInLastImage.y) - lastPOV->GetImage()->GetSize().height,
-                                                                 lastPOV, true),
-                                                Core::Projection(static_cast<double>(cornerInCurrentImage.x) - pointOfView->GetImage()->GetSize().width,
-                                                                 static_cast<double>(cornerInCurrentImage.y) - pointOfView->GetImage()->GetSize().height,
-                                                                 pointOfView, true)));
+                        projections.push_back(Core::Projection(static_cast<double>(cornerInCurrentImage.x) - pointOfView->GetImage()->GetSize().width,
+                                                               static_cast<double>(cornerInCurrentImage.y) - pointOfView->GetImage()->GetSize().height,
+                                                               pointOfView, true));
+
+                        matches.push_back(Match(match.first, match.second));
                     }
 
                     if (currentCorners.size() < minimumFeatureThreshold)
@@ -107,6 +112,8 @@ namespace Xu
                 lastGray = currentGray;
                 lastCorners = currentCorners;
                 lastPOV = pointOfView;
+
+                return projections;
             }
 
             std::vector<AbstractFeatureMatcher::Match> GFTTFeatureMatcher::MatchAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV)

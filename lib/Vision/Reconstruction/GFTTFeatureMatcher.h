@@ -14,7 +14,7 @@ namespace Xu
                 public:
                     GFTTFeatureMatcher(Core::Scene &scene, int minimumFeatureThreshold = 45, float qualityLevel = 0.1);
 
-                    virtual void DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView);
+                    virtual std::vector<Core::Projection> DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView);
                     virtual std::vector<Match> MatchAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV);
 
                 private:
@@ -28,8 +28,6 @@ namespace Xu
 
                     cv::Mat lastGray;
                     cv::Mat currentGray;
-                    std::vector<uchar> status;
-                    std::vector<float> errors;
 
                     std::vector<Match> matches;
 

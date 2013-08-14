@@ -32,23 +32,25 @@ namespace Xu
 
             void AbstractFeatureMatcher::ProcessImage(const std::shared_ptr<Core::PointOfView> &pointOfView)
             {
-                DetectAlgorithmSpecificFeatures(pointOfView);
+                std::vector<Core::Projection> currentProjections = DetectAlgorithmSpecificFeatures(pointOfView);
 
-                for (const std::shared_ptr<Core::PointOfView> &previousPOV : previousPointsOfView)
+                auto currentPOV = std::make_pair(pointOfView, currentProjections);
+
+                for (auto &previousPOV : previousPointsOfView)
                 {
-                    std::vector<Match> matches = MatchAlgorithmSpecificFeatures(previousPOV, pointOfView);
+                    std::vector<Match> matches = MatchAlgorithmSpecificFeatures(previousPOV.first, currentPOV.first);
 
                     for (Match &match : matches)
                     {
-                        Core::Projection &leftProjection = match.leftPoint;
-                        Core::Projection &rightProjection = match.rightPoint;
+                        Core::Projection &leftProjection = previousPOV.second.at(match.leftFeatureIndex);
+                        Core::Projection &rightProjection = currentPOV.second.at(match.rightFeatureIndex);
 
                         if (leftProjection.GetAssociatedPoint() == nullptr
                                 && rightProjection.GetAssociatedPoint() == nullptr)
                         {
                             Core::Feature &feature = scene->GetFeatures()->CreateFeature();
-                            Core::IImage::Pixel pixel = pointOfView->GetImage()->GetPixel(match.rightPoint.GetX() + pointOfView->GetImage()->GetSize().width,
-                                                                                          match.rightPoint.GetY() + pointOfView->GetImage()->GetSize().height);
+                            Core::IImage::Pixel pixel = pointOfView->GetImage()->GetPixel(rightProjection.GetX() + pointOfView->GetImage()->GetSize().width,
+                                                                                          rightProjection.GetY() + pointOfView->GetImage()->GetSize().height);
                             feature.SetColor(pixel.red, pixel.green, pixel.blue);
 
                             leftProjection.SetAssociatedPoint(&feature);
@@ -79,7 +81,7 @@ namespace Xu
                     }
                 }
 
-                previousPointsOfView.push_back(pointOfView);
+                previousPointsOfView.push_back(currentPOV);
             }
 
             void AbstractFeatureMatcher::CorrectMatches(std::vector<Match> &matches, const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV) const

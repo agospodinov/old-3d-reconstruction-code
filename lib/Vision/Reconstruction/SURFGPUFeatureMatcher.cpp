@@ -18,7 +18,6 @@ namespace Xu
 
             SURFGPUFeatureMatcher::SURFGPUFeatureMatcher(Core::Scene &scene, int matchNLast, int keepMLastOnGPU)
                 : AbstractFeatureMatcher(scene, matchNLast),
-                  imageKeypointsGPU(keepMLastOnGPU),
                   imageDescriptorsGPU(keepMLastOnGPU)
             {
             }
@@ -27,7 +26,7 @@ namespace Xu
             {
             }
 
-            void SURFGPUFeatureMatcher::DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView)
+            std::vector<Core::Projection> SURFGPUFeatureMatcher::DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView)
             {
                 cv::gpu::GpuMat image;
 
@@ -42,15 +41,27 @@ namespace Xu
                     image.upload(pointOfView->GetImage()->GetMatrix());
                 }
 
-                cv::gpu::GpuMat imageKeypoints;
+                cv::gpu::GpuMat imageKeypointsGPU;
                 cv::gpu::GpuMat imageDescriptors;
                 featureExtractor(image,
                                  cv::gpu::GpuMat(),
-                                 imageKeypoints,
+                                 imageKeypointsGPU,
                                  imageDescriptors);
 
-                imageKeypointsGPU.push_back(std::make_pair(pointOfView, imageKeypoints));
                 imageDescriptorsGPU.push_back(std::make_pair(pointOfView, imageDescriptors));
+
+                cv::Mat imageKeypoints(imageKeypointsGPU);
+                std::vector<Core::Projection> projections;
+
+                for (int i = 0; i < imageKeypoints.cols; i++)
+                {
+                    projections.push_back(Core::Projection(
+                                static_cast<double>(imageKeypoints.ptr<float>(cv::gpu::SURF_GPU::X_ROW)[i] - pointOfView->GetImage()->GetSize().width),
+                                static_cast<double>(imageKeypoints.ptr<float>(cv::gpu::SURF_GPU::Y_ROW)[i] - pointOfView->GetImage()->GetSize().height),
+                                pointOfView, true));
+                }
+
+                return projections;
             }
 
             std::vector<AbstractFeatureMatcher::Match> SURFGPUFeatureMatcher::MatchAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV)
@@ -88,26 +99,13 @@ namespace Xu
                 matcher.knnMatchSingle(imageDescriptors1, imageDescriptors2, trainIdx, distance, allDist, 2);
                 matcher.knnMatchDownload(trainIdx, distance, knnMatches);
 
-                cv::Mat keypointsLeft(std::find_if(imageKeypointsGPU.begin(), imageKeypointsGPU.end(), std::bind(matchPOV, leftPOV, _1))->second);
-                cv::Mat keypointsRight(std::find_if(imageKeypointsGPU.begin(), imageKeypointsGPU.end(), std::bind(matchPOV, rightPOV, _1))->second);
-
                 for (int k = 0; k < knnMatches.size(); k++)
                 {
                     if (knnMatches[k][0].distance / knnMatches[k][1].distance < 0.6 /*0.7*/)
                     {
-                        cv::DMatch dMatch = knnMatches[k][0];
+                        const cv::DMatch &dMatch = knnMatches[k][0];
 
-                        Core::Projection leftProjection(
-                                    static_cast<double>(keypointsLeft.ptr<float>(cv::gpu::SURF_GPU::X_ROW)[dMatch.queryIdx] - leftPOV->GetImage()->GetSize().width),
-                                    static_cast<double>(keypointsLeft.ptr<float>(cv::gpu::SURF_GPU::Y_ROW)[dMatch.queryIdx] - leftPOV->GetImage()->GetSize().height),
-                                    leftPOV, true);
-                        Core::Projection rightProjection(
-                                    static_cast<double>(keypointsRight.ptr<float>(cv::gpu::SURF_GPU::X_ROW)[dMatch.trainIdx] - rightPOV->GetImage()->GetSize().width),
-                                    static_cast<double>(keypointsRight.ptr<float>(cv::gpu::SURF_GPU::Y_ROW)[dMatch.trainIdx] - rightPOV->GetImage()->GetSize().height),
-                                    rightPOV, true);
-
-
-                        AbstractFeatureMatcher::Match match(dMatch.queryIdx, dMatch.trainIdx, leftProjection, rightProjection);
+                        AbstractFeatureMatcher::Match match(dMatch.queryIdx, dMatch.trainIdx);
                         matches.push_back(match);
                     }
                 }
