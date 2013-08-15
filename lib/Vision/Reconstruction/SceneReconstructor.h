@@ -62,8 +62,6 @@ namespace Xu
 
                     std::shared_ptr<Core::SingleViewCamera> camera;
 
-                    std::queue<std::shared_ptr<Core::PointOfView> > matchedPointsOfView;
-
                     std::shared_ptr<Core::PointOfView> lastPointOfView;
                     std::shared_ptr<Core::PointOfView> currentPointOfView;
             };

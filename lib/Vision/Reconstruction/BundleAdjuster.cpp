@@ -31,7 +31,6 @@ namespace Xu
             void BundleAdjuster::EstimateCameraPose(std::shared_ptr<Core::PointOfView> &pointOfView)
             {
                 SbaParameters params = PrepareData(MOTION_ONLY);
-                // can this leak? perhaps use weak_ptrs?
                 params.pointsOfView.push_back(pointOfView);
 
                 Run(0, params.pointsOfView.size() - 1, params);
