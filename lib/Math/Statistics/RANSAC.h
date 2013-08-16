@@ -14,7 +14,7 @@ namespace Xu
         namespace Statistics
         {
             /**
-             * @brief Implements the RANSAC algorithm
+             * @brief Implements the RANSAC algorithm.
              *
              * Input:
              * U = { x_i } // set of data points
@@ -24,14 +24,8 @@ namespace Xu
              * Output:
              * T' // the best model parameters found according to the cost
              *
-             * References:
-             * Yaniv Z. Random Sample Consensus (RANSAC) Algorithm, A Generic
-             * Implementation. 2010 Oct.
-             *
-             * The code is not copied; however, their implementation and paper
-             * influenced this code, so it's only fair to give them credit.
              */
-            template <typename T, typename U>
+            template <typename ValueType, typename ModelType>
             class RANSAC
             {
                 public:
@@ -41,8 +35,8 @@ namespace Xu
                      * different samples. If it's 0, dynamically estimate
                      * the probability of finding a good sample.
                      */
-                    RANSAC(std::function<U(std::vector<T>)> parametersEstimationFunction,
-                           std::function<Core::Number(U, T)> errorFunction,
+                    RANSAC(std::function<ModelType(std::vector<ValueType>)> parametersEstimationFunction,
+                           std::function<Core::Number(ModelType, ValueType)> errorFunction,
                            std::size_t minimalSampleSize,
                            const Core::Number &errorThreshold,
                            std::size_t samples = std::numeric_limits<std::size_t>::max())
@@ -57,7 +51,7 @@ namespace Xu
                     {
                     }
 
-                    U Estimate(const std::vector<T> &data)
+                    ModelType Estimate(const std::vector<ValueType> &data)
                     {
                         assert (minimalSampleSize <= data.size());
 
@@ -68,18 +62,18 @@ namespace Xu
                         {
                             std::random_shuffle(indices.begin(), indices.end());
 
-                            std::vector<T> sample;
+                            std::vector<ValueType> sample;
                             sample.reserve(minimalSampleSize);
                             for (int i = 0; i < minimalSampleSize; i++)
                             {
                                 sample.push_back(data.at(indices[i]));
                             }
 
-                            U parameters = parametersEstimationFunction(sample);
+                            ModelType parameters = parametersEstimationFunction(sample);
 
                             std::size_t inliers = 0;
                             Core::Number totalError = 0;
-                            for (const T &datum : data)
+                            for (const ValueType &datum : data)
                             {
                                 Core::Number error = errorFunction(parameters, datum);
                                 if (error < errorThreshold)
@@ -99,7 +93,8 @@ namespace Xu
                             if (adaptive)
                             {
                                 Core::Number w = static_cast<double>(inliers) / static_cast<double>(data.size());
-                                maximumIterations = std::log(1 - 0.999) / std::log(1 - std::pow(static_cast<double>(w), minimalSampleSize));
+                                std::size_t newMaximumIterations = std::log(1 - 0.999) / std::log(1 - std::pow(static_cast<double>(w), minimalSampleSize));
+                                maximumIterations = std::min(maximumIterations, newMaximumIterations);
                             }
                         }
 
@@ -111,12 +106,11 @@ namespace Xu
 
 
                 private:
-                    std::vector<T> data;
                     std::size_t minimalSampleSize;
-                    std::function<U(std::vector<T>)> parametersEstimationFunction;
-                    std::function<Core::Number(U, T)> errorFunction;
+                    std::function<ModelType(std::vector<ValueType>)> parametersEstimationFunction;
+                    std::function<Core::Number(ModelType, ValueType)> errorFunction;
 
-                    U bestModel;
+                    ModelType bestModel;
                     std::size_t bestModelInliers;
                     Core::Number bestModelError;
 

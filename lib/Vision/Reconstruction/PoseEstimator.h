@@ -27,11 +27,13 @@ namespace Xu
                     void EstimateCameraPose(std::shared_ptr<Core::PointOfView> &pointOfView);
 
                 private:
+                    const double threshold;
+
                     typedef std::pair<Core::Point, Core::Projection> DataType;
                     typedef Math::LinearAlgebra::Matrix<3, 4> ParametersType;
 
                     ParametersType EstimateProjection(const std::vector<DataType> &data);
-                    Math::Core::Number EstimateError(const ParametersType &projectionMatrix, const DataType &datum);
+                    Math::Core::Number EstimateError(const ParametersType &projectionMatrix, const DataType &datum, bool checkCheirality = false, int sign = 1);
 
                     std::shared_ptr<Core::Scene> scene;
             };

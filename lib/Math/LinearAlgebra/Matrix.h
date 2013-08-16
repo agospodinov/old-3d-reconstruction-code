@@ -1,7 +1,7 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
-#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Core>
 
 #include "Math/Core/Number.h"
 

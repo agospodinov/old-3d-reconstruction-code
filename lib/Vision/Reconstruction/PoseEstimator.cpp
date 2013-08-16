@@ -4,6 +4,8 @@
 #include <vector>
 
 #include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/QR>
+
 #include <opencv2/core/eigen.hpp>
 
 #include "Math/Statistics/RANSAC.h"
@@ -20,7 +22,8 @@ namespace Xu
         namespace Reconstruction
         {
             PoseEstimator::PoseEstimator(const std::shared_ptr<Core::Scene> &scene)
-                : scene(scene)
+                : scene(scene),
+                  threshold(4.0)
             {
             }
 
@@ -28,8 +31,8 @@ namespace Xu
             {
                 using namespace std::placeholders;
                 Math::Statistics::RANSAC<DataType, ParametersType> ransacEngine(std::bind(&PoseEstimator::EstimateProjection, this, _1),
-                                                                                std::bind(&PoseEstimator::EstimateError, this, _1, _2),
-                                                                                6, 8.0, 2048);
+                                                                                std::bind(&PoseEstimator::EstimateError, this, _1, _2, false, 1),
+                                                                                6, threshold, 2048);
 
                 std::vector<DataType> data;
                 data.reserve(scene->GetFeatures()->Size());
@@ -49,15 +52,58 @@ namespace Xu
 
                 if (data.size() < 6)
                 {
+                    std::cout << "Not enough points to estimate camera pose." << std::endl;
                     return;
                 }
 
                 Math::LinearAlgebra::Matrix<3, 4> projectionMatrix = ransacEngine.Estimate(data);
 
-                // FIXME incorrect. Need to do RQ factorization.
-                cv::Mat poseMatrix; cv::eigen2cv(projectionMatrix, poseMatrix);
-                pointOfView->GetCameraParameters().SetPoseMatrix(poseMatrix);
-                pointOfView->GetCameraParameters().SetPoseDetermined(false);
+                auto qr = projectionMatrix.block(0, 0, 3, 3).colwise().reverse().transpose().householderQr();
+                Eigen::MatrixXd tempQ = qr.householderQ();
+                Eigen::MatrixXd tempR = qr.matrixQR().triangularView<Eigen::Upper>();
+
+                Eigen::MatrixXd q = tempQ.transpose().colwise().reverse();
+                Eigen::MatrixXd r = tempR.transpose().colwise().reverse().rowwise().reverse();
+
+                int negative = static_cast<int>(r(0) < 0) + static_cast<int>(r(4) < 0) + static_cast<int>(r(8) < 0);
+                int sign = (negative % 2 == 0) ? 1 : -1;
+
+                std::vector<DataType> inliers;
+                for (const DataType &datum : data)
+                {
+                    Math::Core::Number error = EstimateError(projectionMatrix, datum, true, sign);
+
+                    if (error < threshold * threshold)
+                    {
+                        inliers.push_back(datum);
+                    }
+                }
+
+                if (inliers.size() < 6)
+                {
+                    std::cout << "Not enough inliers to estimate camera pose." << std::endl;
+                    return;
+                }
+
+//                ParametersType projectionMatrixLinear = EstimateProjection(inliers);
+
+//                for (const DataType &datum : data)
+//                {
+//                    Math::Core::Number error = EstimateError(projectionMatrixLinear, datum, true, sign);
+
+//                    if (error < threshold * threshold)
+//                    {
+//                        inliers.push_back(datum);
+//                    }
+//                }
+
+
+//                std::cout << "Intrinsics: " << std::endl << r << std::endl;
+//                std::cout << "Extrinsics: " << std::endl << q << std::endl;
+
+//                cv::Mat poseMatrix; cv::eigen2cv(q, poseMatrix);
+//                pointOfView->GetCameraParameters().SetPoseMatrix(poseMatrix);
+//                pointOfView->GetCameraParameters().SetPoseDetermined(false);
             }
 
             PoseEstimator::ParametersType PoseEstimator::EstimateProjection(const std::vector<DataType> &data)
@@ -112,7 +158,7 @@ namespace Xu
                 return projectionMatrix;
             }
 
-            Math::Core::Number PoseEstimator::EstimateError(const ParametersType &projectionMatrix, const DataType &datum)
+            Math::Core::Number PoseEstimator::EstimateError(const ParametersType &projectionMatrix, const DataType &datum, bool checkCheirality, int sign)
             {
                 Eigen::MatrixXd point(4, 1);
                 point << datum.first.GetX(),
@@ -121,11 +167,16 @@ namespace Xu
                         1.0;
 
                 Eigen::MatrixXd projectedPoint = projectionMatrix * point;
-                projectedPoint(0, 0) /= -projectedPoint(2, 0);
-                projectedPoint(1, 0) /= -projectedPoint(2, 0);
+                if (checkCheirality && sign * projectedPoint(2) > 0)
+                {
+                    return std::numeric_limits<double>::max();
+                }
 
-                double dx = projectedPoint(0, 0) - datum.second.GetX();
-                double dy = projectedPoint(1, 0) - datum.second.GetY();
+                projectedPoint(0) /= -projectedPoint(2);
+                projectedPoint(1) /= -projectedPoint(2);
+
+                double dx = projectedPoint(0) - datum.second.GetX();
+                double dy = projectedPoint(1) - datum.second.GetY();
 
                 double distance = dx * dx + dy * dy;
 
