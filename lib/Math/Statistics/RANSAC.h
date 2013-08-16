@@ -59,13 +59,12 @@ namespace Xu
 
                     U Estimate(const std::vector<T> &data)
                     {
-                        assert (minimalSampleSize < data.size());
+                        assert (minimalSampleSize <= data.size());
 
                         std::vector<std::size_t> indices(data.size());
                         std::iota(indices.begin(), indices.end(), 0);
 
-                        int i = 0;
-                        while (i < maximumIterations)
+                        for (int i = 0; i < maximumIterations; i++)
                         {
                             std::random_shuffle(indices.begin(), indices.end());
 
@@ -89,7 +88,6 @@ namespace Xu
                                     totalError += error;
                                 }
                             }
-                            totalError /= inliers;
 
                             if (inliers > bestModelInliers || (inliers == bestModelInliers && totalError < bestModelError))
                             {
@@ -103,8 +101,6 @@ namespace Xu
                                 Core::Number w = static_cast<double>(inliers) / static_cast<double>(data.size());
                                 maximumIterations = std::log(1 - 0.999) / std::log(1 - std::pow(static_cast<double>(w), minimalSampleSize));
                             }
-
-                            ++i;
                         }
 
                         std::cout << "[RANSAC] Number of inliers of best model: " << bestModelInliers << std::endl;

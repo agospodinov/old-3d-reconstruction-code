@@ -29,7 +29,7 @@ namespace Xu
                 using namespace std::placeholders;
                 Math::Statistics::RANSAC<DataType, ParametersType> ransacEngine(std::bind(&PoseEstimator::EstimateProjection, this, _1),
                                                                                 std::bind(&PoseEstimator::EstimateError, this, _1, _2),
-                                                                                6, 4.0, 2048);
+                                                                                6, 8.0, 2048);
 
                 std::vector<DataType> data;
                 data.reserve(scene->GetFeatures()->Size());
@@ -100,8 +100,8 @@ namespace Xu
                     B(2 * i + 1, 0) = -data.at(i).second.GetY();
                 }
 
-                Eigen::MatrixXd X = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(B);
-//                Eigen::MatrixXd X = A.householderQr().solve(B);
+//                Eigen::MatrixXd X = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(B);
+                Eigen::MatrixXd X = A.householderQr().solve(B);
 
                 Math::LinearAlgebra::Matrix<3, 4> projectionMatrix;
                 projectionMatrix <<

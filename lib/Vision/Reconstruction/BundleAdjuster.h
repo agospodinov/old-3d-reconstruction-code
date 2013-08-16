@@ -29,6 +29,11 @@ namespace Xu
                     void RunOnAllData();
                     void Reset(Core::Scene &scene);
 
+                    inline void AddPOV(std::shared_ptr<Core::PointOfView> &pointOfView)
+                    {
+                        pointsOfView.push_back(pointOfView);
+                    }
+
                 private:
 
                     enum SbaMode
@@ -63,6 +68,7 @@ namespace Xu
                     static void ProjectPointMotionOnly(int j, int i, double *cameraParams, double *projection, void *additionalData);
 
                     Core::Scene *scene;
+                    std::vector<std::shared_ptr<Core::PointOfView> > pointsOfView;
 
                     int adjustedPoints, adjustedCameras;
             };

@@ -67,14 +67,13 @@ namespace Xu
                 }
 
                 // FIXME
-//                std::vector<std::shared_ptr<Core::PointOfView> > existingPointsOfView = features->GetPointsOfView();
-//                for (const std::shared_ptr<Core::PointOfView> &pointOfView : existingPointsOfView)
-//                {
-//                    if (pointOfView->GetCameraParameters().IsPoseDetermined())
-//                    {
-//                        params.pointsOfView.push_back(pointOfView);
-//                    }
-//                }
+                for (const std::shared_ptr<Core::PointOfView> &pointOfView : pointsOfView)
+                {
+                    if (pointOfView->GetCameraParameters().IsPoseDetermined())
+                    {
+                        params.pointsOfView.push_back(pointOfView);
+                    }
+                }
 
                 return params;
             }

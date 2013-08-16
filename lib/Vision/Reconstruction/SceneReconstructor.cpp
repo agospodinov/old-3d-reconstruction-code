@@ -28,8 +28,8 @@ namespace Xu
             SceneReconstructor::SceneReconstructor(std::shared_ptr<Core::SingleViewCamera> camera)
                 : camera(camera),
                   scene(new Core::Scene()),
-//                  featureMatcher(new SURFGPUFeatureMatcher(*scene)),
-                  featureMatcher(new GFTTFeatureMatcher(*scene)),
+                  featureMatcher(new SURFGPUFeatureMatcher(*scene)),
+//                  featureMatcher(new GFTTFeatureMatcher(*scene)),
                   bundleAdjuster(new BundleAdjuster(*scene)),
                   denseMatcher(new DenseMatcher(scene)),
                   poseEstimator(new PoseEstimator(scene)),
@@ -157,6 +157,8 @@ namespace Xu
                     if (!initialTriangulation)
                     {
                         InitialReconstruction();
+                        bundleAdjuster->AddPOV(currentPointOfView);
+                        bundleAdjuster->RunOnAllData();
 
                         lastPointOfView = currentPointOfView;
 
@@ -174,8 +176,8 @@ namespace Xu
                         return;
                     }
 
-//                    shouldRunBundleAdjustment = true;
-//                    bundleAdjuster->RunOnAllData();
+                    bundleAdjuster->AddPOV(currentPointOfView);
+                    bundleAdjuster->RunOnAllData();
 
                     lastPointOfView = currentPointOfView;
                 }
