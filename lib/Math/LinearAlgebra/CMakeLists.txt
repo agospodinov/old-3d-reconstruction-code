@@ -3,6 +3,7 @@ set(MATH_LIB_LINEAR_ALGEBRA_SOURCES
     Vector.cpp          Vector.h
     VectorSpace.cpp     VectorSpace.h
     Matrix.cpp          Matrix.h
+    QRDecomposition.cpp QRDecomposition.h
 )
 
 find_package(Eigen3 REQUIRED)

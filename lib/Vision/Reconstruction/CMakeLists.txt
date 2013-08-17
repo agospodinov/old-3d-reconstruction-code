@@ -32,4 +32,4 @@ add_definitions(${PCL_DEFINITIONS} "-std=c++11")
 
 add_library(Reconstruction SHARED ${RECONSTRUCTION_LIB_SOURCES})
 
-target_link_libraries(Reconstruction Core VisionCore VisionInput five-point-nister sba lapack ${PCL_LIBRARIES})
+target_link_libraries(Reconstruction Core VisionCore VisionInput five-point-nister sba lapack ${OpenCV_LIBS} ${PCL_LIBRARIES})

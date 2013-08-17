@@ -21,7 +21,7 @@ namespace Xu
             class SURFGPUFeatureMatcher : public AbstractFeatureMatcher
             {
                 public:
-                    SURFGPUFeatureMatcher(Core::Scene &scene, int matchNLast = 4, int keepMLastOnGPU = 10);
+                    SURFGPUFeatureMatcher(Core::Scene &scene, int matchNLast = 4, int keepMLastOnGPU = 5);
                     virtual ~SURFGPUFeatureMatcher();
 
                     virtual std::vector<Core::Projection> DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView);

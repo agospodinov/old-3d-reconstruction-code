@@ -21,8 +21,8 @@ namespace Xu
             {
             }
 
-            BundleAdjuster::BundleAdjuster(Core::Scene &scene)
-                : scene(&scene),
+            BundleAdjuster::BundleAdjuster(const std::shared_ptr<Core::Scene> &scene)
+                : scene(scene),
                   adjustedCameras(0),
                   adjustedPoints(0)
             {
@@ -48,9 +48,9 @@ namespace Xu
                 Run(0, 0, params);
             }
 
-            void BundleAdjuster::Reset(Core::Scene &scene)
+            void BundleAdjuster::Reset(const std::shared_ptr<Core::Scene> &scene)
             {
-                this->scene = &scene;
+                this->scene = scene;
             }
 
             BundleAdjuster::SbaParameters BundleAdjuster::PrepareData(SbaMode mode)

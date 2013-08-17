@@ -30,7 +30,7 @@ namespace Xu
                   scene(new Core::Scene()),
 //                  featureMatcher(new SURFGPUFeatureMatcher(*scene)),
                   featureMatcher(new GFTTFeatureMatcher(*scene)),
-                  bundleAdjuster(new BundleAdjuster(*scene)),
+                  bundleAdjuster(new BundleAdjuster(scene)),
                   denseMatcher(new DenseMatcher(scene)),
                   poseEstimator(new PoseEstimator(scene)),
                   running(false),
@@ -140,7 +140,7 @@ namespace Xu
                     if (lastPointOfView == NULL)
                     {
                         scene->ResetFeatures();
-                        bundleAdjuster->Reset(*scene);
+                        bundleAdjuster->Reset(scene);
 
                         initialTriangulation = false;
                         lastPointOfView = pointOfView;
@@ -177,8 +177,12 @@ namespace Xu
                         return;
                     }
 
-                    bundleAdjuster->AddPOV(currentPointOfView);
-                    bundleAdjuster->RunOnAllData();
+//                    bundleAdjuster->EstimateCameraPose(currentPointOfView);
+//                    bundleAdjuster->AddPOV(currentPointOfView);
+//                    bundleAdjuster->RunOnAllData();
+
+                    TriangulatePoints(true);
+//                    bundleAdjuster->RunOnAllData();
 
                     lastPointOfView = currentPointOfView;
                 }

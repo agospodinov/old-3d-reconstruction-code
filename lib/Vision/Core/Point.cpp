@@ -183,6 +183,14 @@ namespace Xu
                 projections.push_back(projection);
             }
 
+            void Point::RemoveProjection(const std::shared_ptr<PointOfView> &pointOfView)
+            {
+                projections.erase(std::remove_if(projections.begin(), projections.end(), [&](const Projection &projection)
+                {
+                    return projection.GetPointOfView() == pointOfView;
+                }), projections.end());
+            }
+
             void Point::Triangulate(bool reset, bool optimize)
             {
                 std::vector<Projection> usefulProjections;
@@ -211,6 +219,42 @@ namespace Xu
                     Refine3DPosition(usefulProjections);
                 }
             }
+
+//            Projection Point::ProjectPoint(const std::shared_ptr<PointOfView> &pointOfView) const
+//            {
+//                Eigen::MatrixXd R; cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
+//                Eigen::MatrixXd T; cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
+//                T = -1 * (R * T);
+
+//                Eigen::MatrixXd point(3, 1); point(0) = x; point(1) = y; point(2) = z;
+//                Eigen::MatrixXd projectedPoint(3, 1);
+//                projectedPoint = R * point;
+//                projectedPoint += T;
+
+//                return Projection(projectedPoint(0) / projectedPoint(2), projectedPoint(1) / projectedPoint(2), pointOfView);
+//            }
+
+//            double Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const
+//            {
+//                double distance = -1.0;
+//                auto projection = GetProjection(pointOfView);
+//                if (projection.is_initialized())
+//                {
+//                    double dx, dy;
+
+//                    cv::Point3d p(imagePoint.x, imagePoint.y, -1.0);
+//                    cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
+//                    p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
+
+//                    cv::Point2d projectedPoint = ProjectPoint(pointOfView);
+
+//                    dx = projectedPoint.x - p.x;
+//                    dy = projectedPoint.y - p.y;
+
+//                    distance = dx * dx + dy * dy;
+//                }
+//                return distance;
+//            }
 
             bool operator ==(const Point &left, const Point &right)
             {
@@ -290,42 +334,6 @@ namespace Xu
                 y = point(1);
                 z = point(2);
             }
-
-//            double Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const
-//            {
-//                double distance = -1.0;
-//                if (HasCorrespondenceInView(pointOfView))
-//                {
-//                    double dx, dy;
-//                    cv::Point2d imagePoint = GetPointInView(pointOfView);
-
-//                    cv::Point3d p(imagePoint.x, imagePoint.y, -1.0);
-//                    cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
-//                    p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
-
-//                    cv::Point2d projectedPoint = ProjectPoint(pointOfView);
-
-//                    dx = projectedPoint.x - p.x;
-//                    dy = projectedPoint.y - p.y;
-
-//                    distance = dx * dx + dy * dy;
-//                }
-//                return distance;
-//            }
-
-//            cv::Point2d Point::ProjectPoint(std::shared_ptr<PointOfView> pointOfView) const
-//            {
-//                Eigen::MatrixXd R; cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
-//                Eigen::MatrixXd T; cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
-//                T = -1 * (R * T);
-
-//                Eigen::MatrixXd X(3, 1); X(0) = x; X(1) = y; X(2) = z;
-//                Eigen::MatrixXd pp(3, 1);
-//                pp = R * X;
-//                pp += T;
-
-//                return cv::Point2d(pp(0) / pp(2), pp(1) / pp(2));
-//            }
         }
     }
 }

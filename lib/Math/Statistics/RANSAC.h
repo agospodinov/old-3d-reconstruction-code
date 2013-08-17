@@ -3,6 +3,10 @@
 
 #include <algorithm>
 #include <functional>
+#include <mutex>
+#include <set>
+#include <thread>
+#include <tuple>
 #include <vector>
 
 #include "Math/Core/Number.h"
@@ -25,7 +29,7 @@ namespace Xu
              * T' // the best model parameters found according to the cost
              *
              */
-            template <typename ValueType, typename ModelType>
+            template <typename ValueType, typename ModelType, typename ErrorType>
             class RANSAC
             {
                 public:
@@ -35,12 +39,12 @@ namespace Xu
                      * different samples. If it's 0, dynamically estimate
                      * the probability of finding a good sample.
                      */
-                    RANSAC(std::function<ModelType(std::vector<ValueType>)> parametersEstimationFunction,
-                           std::function<Core::Number(ModelType, ValueType)> errorFunction,
+                    RANSAC(std::function<ModelType(std::vector<const ValueType *>)> fittingFunction,
+                           std::function<ErrorType(ModelType, ValueType)> errorFunction,
                            std::size_t minimalSampleSize,
-                           const Core::Number &errorThreshold,
+                           const ErrorType &errorThreshold,
                            std::size_t samples = std::numeric_limits<std::size_t>::max())
-                        : parametersEstimationFunction(parametersEstimationFunction),
+                        : fittingFunction(fittingFunction),
                           errorFunction(errorFunction),
                           minimalSampleSize(minimalSampleSize),
                           errorThreshold(errorThreshold),
@@ -55,33 +59,13 @@ namespace Xu
                     {
                         assert (minimalSampleSize <= data.size());
 
-                        std::vector<std::size_t> indices(data.size());
-                        std::iota(indices.begin(), indices.end(), 0);
-
                         for (int i = 0; i < maximumIterations; i++)
                         {
-                            std::random_shuffle(indices.begin(), indices.end());
+                            ModelType parameters;
+                            std::size_t inliers;
+                            ErrorType totalError;
 
-                            std::vector<ValueType> sample;
-                            sample.reserve(minimalSampleSize);
-                            for (int i = 0; i < minimalSampleSize; i++)
-                            {
-                                sample.push_back(data.at(indices[i]));
-                            }
-
-                            ModelType parameters = parametersEstimationFunction(sample);
-
-                            std::size_t inliers = 0;
-                            Core::Number totalError = 0;
-                            for (const ValueType &datum : data)
-                            {
-                                Core::Number error = errorFunction(parameters, datum);
-                                if (error < errorThreshold)
-                                {
-                                    ++inliers;
-                                    totalError += error;
-                                }
-                            }
+                            std::tie(parameters, inliers, totalError) = TryHypothesis(data);
 
                             if (inliers > bestModelInliers || (inliers == bestModelInliers && totalError < bestModelError))
                             {
@@ -92,8 +76,8 @@ namespace Xu
 
                             if (adaptive)
                             {
-                                Core::Number w = static_cast<double>(inliers) / static_cast<double>(data.size());
-                                std::size_t newMaximumIterations = std::log(1 - 0.999) / std::log(1 - std::pow(static_cast<double>(w), minimalSampleSize));
+                                double w = static_cast<double>(inliers) / static_cast<double>(data.size());
+                                std::size_t newMaximumIterations = std::log(1 - 0.99) / std::log(1 - std::pow(w, minimalSampleSize));
                                 maximumIterations = std::min(maximumIterations, newMaximumIterations);
                             }
                         }
@@ -106,16 +90,48 @@ namespace Xu
 
 
                 private:
+                    std::tuple<ModelType, std::size_t, ErrorType> TryHypothesis(const std::vector<ValueType> &data) const
+                    {
+                        std::vector<std::size_t> indices(data.size());
+                        std::iota(indices.begin(), indices.end(), 0);
+                        std::random_shuffle(indices.begin(), indices.end());
+
+                        std::vector<const ValueType *> sample;
+                        sample.reserve(minimalSampleSize);
+                        for (int j = 0; j < minimalSampleSize; j++)
+                        {
+                            sample.push_back(&data.at(indices[j]));
+                        }
+
+                        ModelType parameters = fittingFunction(sample);
+
+                        std::size_t inliers = 0;
+                        ErrorType totalError = 0;
+                        for (const ValueType &datum : data)
+                        {
+                            ErrorType error = errorFunction(parameters, datum);
+                            if (error < errorThreshold)
+                            {
+                                ++inliers;
+                                totalError += error;
+                            }
+                        }
+
+                        return std::make_tuple(parameters, inliers, totalError);
+                    }
+
+                    const std::size_t maxIterationsPerLevel = 32;
+
                     std::size_t minimalSampleSize;
-                    std::function<ModelType(std::vector<ValueType>)> parametersEstimationFunction;
-                    std::function<Core::Number(ModelType, ValueType)> errorFunction;
+                    std::function<ModelType(std::vector<const ValueType *>)> fittingFunction;
+                    std::function<ErrorType(ModelType, ValueType)> errorFunction;
 
                     ModelType bestModel;
                     std::size_t bestModelInliers;
-                    Core::Number bestModelError;
+                    ErrorType bestModelError;
 
-                    Core::Number errorThreshold;
                     std::size_t maximumIterations;
+                    const ErrorType errorThreshold;
                     const bool adaptive;
 
             };

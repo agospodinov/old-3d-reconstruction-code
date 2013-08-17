@@ -88,6 +88,8 @@ namespace Xu
 
             void AbstractFeatureMatcher::CorrectMatches(std::vector<Match> &matches, std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > &leftPOV, std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > &rightPOV) const
             {
+                static bool first = true;
+
                 if (matches.size() == 0)
                 {
                     return;
@@ -105,7 +107,7 @@ namespace Xu
 
                 std::vector<uchar> status(matches.size());
 
-                cv::Mat fundamentalMatrix = cv::findFundamentalMat(leftImagePoints, rightImagePoints, cv::FM_RANSAC, 3.0, 0.99, status);
+                cv::Mat fundamentalMatrix = cv::findFundamentalMat(leftImagePoints, rightImagePoints, cv::FM_RANSAC, 3.0, 0.999, status);
 
                 std::cout << "Inliers as determined by the fundamental matrix: " << cv::countNonZero(status) << " / " << status.size() << std::endl;
 
@@ -115,9 +117,8 @@ namespace Xu
                 }
 
                 std::vector<cv::Point2d> leftImageGoodPoints, rightImageGoodPoints;
-                std::vector<cv::Point2d> correctedLeftImagePoints, correctedRightImagePoints;
 
-                for (int i = status.size() - 1; i > 0; i--)
+                for (int i = status.size() - 1; i >= 0; i--)
                 {
                     if (status.at(i) == 0) // If the point is an outlier
                     {
@@ -125,22 +126,28 @@ namespace Xu
                     }
                 }
 
-                for (const Match &match : matches)
+                if (first)
                 {
-                    leftImageGoodPoints.push_back(cv::Point2d(leftPOV.second.at(match.leftFeatureIndex).GetX(), leftPOV.second.at(match.leftFeatureIndex).GetY()));
-                    rightImageGoodPoints.push_back(cv::Point2d(rightPOV.second.at(match.rightFeatureIndex).GetX(), rightPOV.second.at(match.rightFeatureIndex).GetY()));
+                    for (const Match &match : matches)
+                    {
+                        leftImageGoodPoints.push_back(cv::Point2d(leftPOV.second.at(match.leftFeatureIndex).GetX(), leftPOV.second.at(match.leftFeatureIndex).GetY()));
+                        rightImageGoodPoints.push_back(cv::Point2d(rightPOV.second.at(match.rightFeatureIndex).GetX(), rightPOV.second.at(match.rightFeatureIndex).GetY()));
+                    }
+
+                    std::vector<cv::Point2d> correctedLeftImagePoints, correctedRightImagePoints;
+                    cv::correctMatches(fundamentalMatrix, leftImageGoodPoints, rightImageGoodPoints, correctedLeftImagePoints, correctedRightImagePoints);
+
+                    for (int i = 0; i < matches.size(); i++)
+                    {
+                        const Match &match = matches[i];
+                        leftPOV.second.at(match.leftFeatureIndex).SetX(correctedLeftImagePoints.at(i).x);
+                        leftPOV.second.at(match.leftFeatureIndex).SetY(correctedLeftImagePoints.at(i).y);
+                        rightPOV.second.at(match.rightFeatureIndex).SetX(correctedRightImagePoints.at(i).x);
+                        rightPOV.second.at(match.rightFeatureIndex).SetY(correctedRightImagePoints.at(i).y);
+                    }
                 }
 
-                cv::correctMatches(fundamentalMatrix, leftImageGoodPoints, rightImageGoodPoints, correctedLeftImagePoints, correctedRightImagePoints);
-
-                for (int i = 0; i < matches.size(); i++)
-                {
-                    const Match &match = matches[i];
-                    leftPOV.second.at(match.leftFeatureIndex).SetX(correctedLeftImagePoints.at(i).x);
-                    leftPOV.second.at(match.leftFeatureIndex).SetY(correctedLeftImagePoints.at(i).y);
-                    rightPOV.second.at(match.rightFeatureIndex).SetX(correctedRightImagePoints.at(i).x);
-                    rightPOV.second.at(match.rightFeatureIndex).SetY(correctedRightImagePoints.at(i).y);
-                }
+                first = false;
             }
         }
     }

@@ -1,14 +1,18 @@
 #include "PoseEstimator.h"
 
 #include <functional>
+#include <tuple>
 #include <vector>
 
 #include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/SVD>
+#include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/QR>
 
 #include <opencv2/core/eigen.hpp>
 
 #include "Math/Statistics/RANSAC.h"
+#include "Math/Optimization/LevenbergMarquardt.h"
 
 #include "Vision/Core/Feature.h"
 #include "Vision/Core/FeatureSet.h"
@@ -23,19 +27,15 @@ namespace Xu
         {
             PoseEstimator::PoseEstimator(const std::shared_ptr<Core::Scene> &scene)
                 : scene(scene),
-                  threshold(4.0)
+                  threshold(8.0)
             {
             }
 
             void PoseEstimator::EstimateCameraPose(std::shared_ptr<Core::PointOfView> &pointOfView)
             {
-                using namespace std::placeholders;
-                Math::Statistics::RANSAC<DataType, ParametersType> ransacEngine(std::bind(&PoseEstimator::EstimateProjection, this, _1),
-                                                                                std::bind(&PoseEstimator::EstimateError, this, _1, _2, false, 1),
-                                                                                6, threshold, 2048);
-
-                std::vector<DataType> data;
-                data.reserve(scene->GetFeatures()->Size());
+                std::vector<Core::Feature *> features;
+                std::vector<cv::Point3f> pointCloud;
+                std::vector<cv::Point2f> imagePoints;
                 for (auto it = scene->GetFeatures()->Begin(); it != scene->GetFeatures()->End(); ++it)
                 {
                     Core::Feature &feature = *it;
@@ -45,142 +45,148 @@ namespace Xu
 
                         if (projection.is_initialized())
                         {
-                            data.push_back(std::make_pair(feature, projection.get()));
+                            features.push_back(&feature);
+                            pointCloud.emplace_back(feature.GetX(), feature.GetY(), feature.GetZ());
+                            imagePoints.emplace_back(projection->GetX(), projection->GetY());
                         }
                     }
                 }
 
-                if (data.size() < 6)
+                assert (pointCloud.size() == imagePoints.size());
+                if (pointCloud.size() < 6)
                 {
                     std::cout << "Not enough points to estimate camera pose." << std::endl;
                     return;
                 }
 
-                Math::LinearAlgebra::Matrix<3, 4> projectionMatrix = ransacEngine.Estimate(data);
+                cv::Mat cameraMatrix = pointOfView->GetCameraParameters().GetCameraMatrix();
+                cv::Mat distortionCoefficients = pointOfView->GetCameraParameters().GetDistortionCoefficients();
 
-                auto qr = projectionMatrix.block(0, 0, 3, 3).colwise().reverse().transpose().householderQr();
-                Eigen::MatrixXd tempQ = qr.householderQ();
-                Eigen::MatrixXd tempR = qr.matrixQR().triangularView<Eigen::Upper>();
+                cv::Mat rotation, translation;
+                std::vector<int> inliers;
+                cv::solvePnPRansac(pointCloud, imagePoints, cameraMatrix, distortionCoefficients, rotation, translation, false, 100, threshold, 0.9 * pointCloud.size(), inliers);
 
-                Eigen::MatrixXd q = tempQ.transpose().colwise().reverse();
-                Eigen::MatrixXd r = tempR.transpose().colwise().reverse().rowwise().reverse();
+                // optimize for R, T and f
 
-                int negative = static_cast<int>(r(0) < 0) + static_cast<int>(r(4) < 0) + static_cast<int>(r(8) < 0);
-                int sign = (negative % 2 == 0) ? 1 : -1;
-
-                std::vector<DataType> inliers;
-                for (const DataType &datum : data)
+                auto cameraRefineFunctor = [&inliers, &pointCloud, &imagePoints](const Eigen::VectorXd &input) -> Eigen::VectorXd
                 {
-                    Math::Core::Number error = EstimateError(projectionMatrix, datum, true, sign);
+                    Math::LinearAlgebra::Matrix<3, 3> K = Eigen::Matrix3d::Identity();
+                    K(0, 0) = K(1, 1) = input(6);
+                    Math::LinearAlgebra::Matrix<3, 4> P;
 
-                    if (error < threshold * threshold)
+                    cv::Mat rvec(3, 1, CV_64FC1), rmat;
+                    rvec.at<double>(0) = input(0);
+                    rvec.at<double>(1) = input(1);
+                    rvec.at<double>(2) = input(2);
+                    Eigen::Matrix3d rotationMatrix;
+                    cv::Rodrigues(rvec, rmat);
+                    cv::cv2eigen(rmat, rotationMatrix);
+
+                    Eigen::Vector3d translationVector;
+                    translationVector << input(3), input(4), input(5);
+
+                    P.block(0, 0, 3, 3) = rotationMatrix;
+                    P.col(3) = translationVector;
+
+                    Math::LinearAlgebra::Matrix<3, 4> KP = K * P;
+
+                    Eigen::VectorXd results(2 * inliers.size());
+
+                    #pragma omp parallel for
+                    for (std::size_t i = 0; i < inliers.size(); i++)
                     {
-                        inliers.push_back(datum);
+                        cv::Point3f objectPoint = pointCloud.at(inliers.at(i));
+                        cv::Point2f imagePoint = imagePoints.at(inliers.at(i));
+
+                        Eigen::Vector4d point;
+                        point << objectPoint.x,
+                                objectPoint.y,
+                                objectPoint.z,
+                                1;
+
+                        Eigen::Vector3d projectedPoint = KP * point;
+                        projectedPoint.head<2>() /= projectedPoint(2);
+
+                        results(2 * i + 0) = std::abs(imagePoint.x - projectedPoint(0));
+                        results(2 * i + 1) = std::abs(imagePoint.y - projectedPoint(1));
                     }
-                }
 
-                if (inliers.size() < 6)
+                    return results;
+                };
+
+                Eigen::Vector3d rotationVector, translationVector;
+                cv::cv2eigen(rotation, rotationVector);
+                cv::cv2eigen(translation, translationVector);
+
+                Eigen::VectorXd projection(7);
+                double focalLength = cameraMatrix.at<double>(0, 0);
+                projection << rotationVector, translationVector, focalLength;
+                bool more = false;
+                do
                 {
-                    std::cout << "Not enough inliers to estimate camera pose." << std::endl;
-                    return;
+                    Math::Optimization::LevenbergMarquardt<> lm(cameraRefineFunctor, 7, 2 * inliers.size());
+                    lm.Minimize(projection);
+
+                    Eigen::Matrix3d K = Eigen::Matrix3d::Identity();
+                    Eigen::Matrix3d rotationMatrix;
+                    focalLength = projection(6);
+                    K(0, 0) = K(1, 1) = focalLength;
+                    rotationVector << projection(0), projection(1), projection(2);
+                    cv::Mat srcR, dstR;
+                    cv::eigen2cv(rotationVector, srcR);
+                    cv::Rodrigues(srcR, dstR);
+                    cv::cv2eigen(dstR, rotationMatrix);
+                    translationVector << projection(3), projection(4), projection(5);
+                    Math::LinearAlgebra::Matrix<3, 4> poseMatrix;
+                    poseMatrix << rotationMatrix, translationVector;
+                    Math::LinearAlgebra::Matrix<3, 4> projectionMatrix = K * poseMatrix;
+
+                    more = false;
+
+                    inliers.erase(std::remove_if(inliers.begin(), inliers.end(), [&more, &projectionMatrix, &features, &pointOfView, &pointCloud, &imagePoints, this](int index)
+                    {
+                        cv::Point3f objectPoint = pointCloud.at(index);
+                        cv::Point2f imagePoint = imagePoints.at(index);
+
+                        Eigen::Vector4d point;
+                        point << objectPoint.x,
+                                objectPoint.y,
+                                objectPoint.z,
+                                1;
+
+                        Eigen::Vector3d projectedPoint = projectionMatrix * point;
+                        projectedPoint.head<2>() /= projectedPoint(2);
+
+                        double dx = std::abs(imagePoint.x - projectedPoint(0));
+                        double dy = std::abs(imagePoint.y - projectedPoint(1));
+
+                        double error = std::sqrt(dx * dx + dy * dy);
+
+                        if (error > threshold * threshold)
+                        {
+                            features.at(index)->RemoveProjection(pointOfView);
+                            more = true;
+                            return true;
+                        }
+                        return false;
+                    }), inliers.end());
                 }
+                while (more);
 
-//                ParametersType projectionMatrixLinear = EstimateProjection(inliers);
+                focalLength = projection(6);
+                cv::Mat rotationMatrix, translationMatrix;
 
-//                for (const DataType &datum : data)
-//                {
-//                    Math::Core::Number error = EstimateError(projectionMatrixLinear, datum, true, sign);
+                cv::Mat rotationVec;
+                cv::eigen2cv(rotationVector, rotationVec);
+                cv::Rodrigues(rotationVec, rotationMatrix);
 
-//                    if (error < threshold * threshold)
-//                    {
-//                        inliers.push_back(datum);
-//                    }
-//                }
+                cv::eigen2cv(translationVector, translationMatrix);
 
+                pointOfView->GetCameraParameters().SetRotationMatrix(rotationMatrix);
+                pointOfView->GetCameraParameters().SetTranslationMatrix(-1.0 * (rotationMatrix.t() * translationMatrix));
+                pointOfView->GetCameraParameters().SetFocalLength(focalLength);
 
-//                std::cout << "Intrinsics: " << std::endl << r << std::endl;
-//                std::cout << "Extrinsics: " << std::endl << q << std::endl;
-
-//                cv::Mat poseMatrix; cv::eigen2cv(q, poseMatrix);
-//                pointOfView->GetCameraParameters().SetPoseMatrix(poseMatrix);
-//                pointOfView->GetCameraParameters().SetPoseDetermined(false);
-            }
-
-            PoseEstimator::ParametersType PoseEstimator::EstimateProjection(const std::vector<DataType> &data)
-            {
-                Eigen::MatrixXd A(2 * data.size(), 11);
-                Eigen::MatrixXd B(2 * data.size(), 1);
-
-                for (int i = 0; i < data.size(); i++)
-                {
-                    A(2 * i + 0, 0) = data.at(i).first.GetX();
-                    A(2 * i + 0, 1) = data.at(i).first.GetY();
-                    A(2 * i + 0, 2) = data.at(i).first.GetZ();
-                    A(2 * i + 0, 3) = 1.0;
-
-                    A(2 * i + 0, 4) = 0;
-                    A(2 * i + 0, 5) = 0;
-                    A(2 * i + 0, 6) = 0;
-                    A(2 * i + 0, 7) = 0;
-
-                    A(2 * i + 0, 8) = data.at(i).second.GetX() * data.at(i).first.GetX();
-                    A(2 * i + 0, 9) = data.at(i).second.GetX() * data.at(i).first.GetY();
-                    A(2 * i + 0, 10) = data.at(i).second.GetX() * data.at(i).first.GetZ();
-
-                    B(2 * i + 0, 0) = -data.at(i).second.GetX();
-
-                    A(2 * i + 1, 0) = 0;
-                    A(2 * i + 1, 1) = 0;
-                    A(2 * i + 1, 2) = 0;
-                    A(2 * i + 1, 3) = 0;
-
-                    A(2 * i + 1, 4) = data.at(i).first.GetX();
-                    A(2 * i + 1, 5) = data.at(i).first.GetY();
-                    A(2 * i + 1, 6) = data.at(i).first.GetZ();
-                    A(2 * i + 1, 7) = 1.0;
-
-                    A(2 * i + 1, 8) = data.at(i).second.GetY() * data.at(i).first.GetX();
-                    A(2 * i + 1, 9) = data.at(i).second.GetY() * data.at(i).first.GetY();
-                    A(2 * i + 1, 10) = data.at(i).second.GetY() * data.at(i).first.GetZ();
-
-                    B(2 * i + 1, 0) = -data.at(i).second.GetY();
-                }
-
-//                Eigen::MatrixXd X = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(B);
-                Eigen::MatrixXd X = A.householderQr().solve(B);
-
-                Math::LinearAlgebra::Matrix<3, 4> projectionMatrix;
-                projectionMatrix <<
-                        X(0), X(1), X(2), X(3),
-                        X(4), X(5), X(6), X(7),
-                        X(8), X(9), X(10), 1.0;
-
-                return projectionMatrix;
-            }
-
-            Math::Core::Number PoseEstimator::EstimateError(const ParametersType &projectionMatrix, const DataType &datum, bool checkCheirality, int sign)
-            {
-                Eigen::MatrixXd point(4, 1);
-                point << datum.first.GetX(),
-                        datum.first.GetY(),
-                        datum.first.GetZ(),
-                        1.0;
-
-                Eigen::MatrixXd projectedPoint = projectionMatrix * point;
-                if (checkCheirality && sign * projectedPoint(2) > 0)
-                {
-                    return std::numeric_limits<double>::max();
-                }
-
-                projectedPoint(0) /= -projectedPoint(2);
-                projectedPoint(1) /= -projectedPoint(2);
-
-                double dx = projectedPoint(0) - datum.second.GetX();
-                double dy = projectedPoint(1) - datum.second.GetY();
-
-                double distance = dx * dx + dy * dy;
-
-                return distance;
+                pointOfView->GetCameraParameters().SetPoseDetermined(true);
             }
         }
     }
