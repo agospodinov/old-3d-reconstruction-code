@@ -1,7 +1,8 @@
 #ifndef CAMERAPARAMETERS_H
 #define CAMERAPARAMETERS_H
 
-#include <opencv2/core/core.hpp>
+#include "Math/LinearAlgebra/Matrix.h"
+#include "Math/LinearAlgebra/Vector.h"
 
 namespace Xu
 {
@@ -14,26 +15,26 @@ namespace Xu
                 public:
                     CameraParameters();
 
-                    const cv::Mat &GetCameraMatrix() const;
-                    const cv::Mat &GetInverseCameraMatrix() const;
-                    void SetCameraMatrix(const cv::Mat &cameraMatrix);
+                    const Math::LinearAlgebra::Matrix<3, 3> &GetCameraMatrix() const;
+                    const Math::LinearAlgebra::Matrix<3, 3> GetInverseCameraMatrix() const;
+                    void SetCameraMatrix(const Math::LinearAlgebra::Matrix<3, 3> &cameraMatrix);
 
                     double GetFocalLength() const;
                     void SetFocalLength(double focalLength);
 
-                    const cv::Mat &GetDistortionCoefficients() const;
-                    void SetDistortionCoefficients(const cv::Mat &distortionCoefficients);
+                    const Math::LinearAlgebra::Vector<Math::LinearAlgebra::RuntimeSized> &GetDistortionCoefficients() const;
+                    void SetDistortionCoefficients(const Math::LinearAlgebra::Vector<Math::LinearAlgebra::RuntimeSized> &distortionCoefficients);
 
-                    cv::Mat GetPoseMatrix() const;
-                    void SetPoseMatrix(const cv::Mat &poseMatrix);
+                    Math::LinearAlgebra::Matrix<3, 4> GetPoseMatrix() const;
+                    void SetPoseMatrix(const Math::LinearAlgebra::Matrix<3, 4> &poseMatrix);
 
-                    const cv::Mat &GetRotationMatrix() const;
-                    void SetRotationMatrix(const cv::Mat &rotationMatrix);
+                    const Math::LinearAlgebra::Matrix<3, 3> &GetRotationMatrix() const;
+                    void SetRotationMatrix(const Math::LinearAlgebra::Matrix<3, 3> &rotationMatrix);
 
-                    const cv::Mat &GetTranslationMatrix() const;
-                    void SetTranslationMatrix(const cv::Mat &translationMatrix);
+                    const Math::LinearAlgebra::Vector<3> &GetTranslationMatrix() const;
+                    void SetTranslationMatrix(const Math::LinearAlgebra::Vector<3> &translationMatrix);
 
-                    cv::Mat GetProjectionMatrix() const;
+                    Math::LinearAlgebra::Matrix<3, 4> GetProjectionMatrix() const;
 
                     bool IsCameraMatrixKnown() const;
                     void SetCameraMatrixKnown(bool cameraMatrixKnown);
@@ -42,13 +43,11 @@ namespace Xu
                     void SetPoseDetermined(bool poseDetermined);
 
                 private:
-                    cv::Mat cameraMatrix;
-                    cv::Mat inverseCameraMatrix;
+                    Math::LinearAlgebra::Matrix<3, 3> cameraMatrix;
+                    Math::LinearAlgebra::Vector<Math::LinearAlgebra::RuntimeSized> distortionCoefficients;
 
-                    cv::Mat distortionCoefficients;
-
-                    cv::Mat translationMatrix;
-                    cv::Mat rotationMatrix;
+                    Math::LinearAlgebra::Matrix<3, 3> rotationMatrix;
+                    Math::LinearAlgebra::Vector<3> translationMatrix;
 
                     bool cameraMatrixKnown;
                     bool poseDetermined;

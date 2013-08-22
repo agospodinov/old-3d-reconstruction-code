@@ -15,7 +15,14 @@ namespace Xu
                   image(std::move(frame))
             {
                 double focalLength = std::max(GetImage()->GetSize().width, GetImage()->GetSize().height) * (3.7 / 4.54); // FIXME hardcoded values for galaxy s3 camera
-                cameraParameters.SetFocalLength(focalLength);
+                Math::LinearAlgebra::Matrix<3, 3> cameraMatrix;
+                cameraMatrix <<
+                        focalLength,           0, GetImage()->GetSize().width  / 2,
+                                  0, focalLength, GetImage()->GetSize().height / 2,
+                                  0,           0,                                1;
+
+
+                cameraParameters.SetCameraMatrix(cameraMatrix);
             }
 
             PointOfView::PointOfView(const PointOfView &other)

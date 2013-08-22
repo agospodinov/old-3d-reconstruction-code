@@ -2,7 +2,8 @@
 
 #include <tuple>
 
-#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Geometry>
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
 
 #include <opencv2/core/eigen.hpp>
@@ -51,23 +52,18 @@ namespace Xu
                             {
                                 std::shared_ptr<PointOfView> pointOfView = projection.GetPointOfView();
 
-                                // Refactor, move out of here.
+                                // Refactor, use Point's implementation.
                                 double dx, dy;
 
-                                cv::Point3d p(projection.GetX(), projection.GetY(), -1.0);
-                                cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
-                                p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
+                                Math::LinearAlgebra::Vector<4> point;
+                                point << x(0), x(1), x(2), 1;
+                                Math::LinearAlgebra::Matrix<3, 4> P = pointOfView->GetCameraParameters().GetProjectionMatrix();
 
-                                Eigen::MatrixXd R; cv::cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
-                                Eigen::MatrixXd T; cv::cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
-                                T = -1 * (R * T);
+                                Math::LinearAlgebra::Vector<3> projectedPoint = P * point;
+                                projectedPoint.head<2>() /= projectedPoint(2);
 
-                                Eigen::MatrixXd pp(3, 1);
-                                pp = R * x;
-                                pp += T;
-
-                                dx = pp(0) / pp(2) - p.x;
-                                dy = pp(1) / pp(2) - p.y;
+                                dx = projectedPoint(0) - projection.GetX();
+                                dy = projectedPoint(1) - projection.GetY();
 
                                 fvec[2 * i + 0] = dx;
                                 fvec[2 * i + 1] = dy;
@@ -220,44 +216,35 @@ namespace Xu
                 }
             }
 
-//            Projection Point::ProjectPoint(const std::shared_ptr<PointOfView> &pointOfView) const
-//            {
-//                Eigen::MatrixXd R; cv::cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
-//                Eigen::MatrixXd T; cv::cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
+            Projection Point::ProjectPoint(const std::shared_ptr<PointOfView> &pointOfView) const
+            {
+                Math::LinearAlgebra::Matrix<3, 4> P = pointOfView->GetCameraParameters().GetProjectionMatrix();
 
-//                Eigen::MatrixXd point(3, 1); point(0) = x; point(1) = y; point(2) = z;
-//                Eigen::MatrixXd projectedPoint(3, 1);
-//                point -= T;
-//                projectedPoint = R * point;
-//                projectedPoint.head<2>() /= projectedPoint(2);
+                Eigen::Vector4d point; point << x, y, z, 1;
+                Eigen::Vector3d projectedPoint;
+                projectedPoint = P * point;
+                projectedPoint.head<2>() /= projectedPoint(2);
 
-//                projectedPoint(0) = -point.at<double>(0) * focalLength / point.at<double>(2);
-//                projectedPoint(1) = -point.at<double>(1) * focalLength / point.at<double>(2);
+                return Projection(projectedPoint(0), projectedPoint(1), pointOfView);
+            }
 
-//                return Projection(projectedPoint(0), projectedPoint(1), pointOfView);
-//            }
+            boost::optional<double> Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const
+            {
+                boost::optional<double> distance;
+                boost::optional<Projection> projection = GetProjection(pointOfView);
+                if (projection.is_initialized())
+                {
+                    double dx, dy;
 
-//            boost::optional<double> Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const
-//            {
-//                boost::optional<double> distance;
-//                boost::optional<Projection> projection = GetProjection(pointOfView);
-//                if (projection.is_initialized())
-//                {
-//                    double dx, dy;
+                    Projection projectedPoint = ProjectPoint(pointOfView);
 
-//                    cv::Point3d p(imagePoint.x, imagePoint.y, -1.0);
-//                    cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
-//                    p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
+                    dx = projectedPoint.GetX() - projection->GetX();
+                    dy = projectedPoint.GetY() - projection->GetY();
 
-//                    cv::Point2d projectedPoint = ProjectPoint(pointOfView);
-
-//                    dx = projectedPoint.x - p.x;
-//                    dy = projectedPoint.y - p.y;
-
-//                    distance = dx * dx + dy * dy;
-//                }
-//                return distance;
-//            }
+                    distance = std::sqrt(dx * dx + dy * dy);
+                }
+                return distance;
+            }
 
             bool operator ==(const Point &left, const Point &right)
             {
@@ -290,24 +277,23 @@ namespace Xu
                 {
                     std::shared_ptr<PointOfView> pointOfView = projection.GetPointOfView();
 
-                    cv::Point3d p(projection.GetX(), projection.GetY(), -1.0);
-                    cv::Mat pm = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * cv::Mat(p);
-                    p.x = pm.at<double>(0) / pm.at<double>(2); p.y = pm.at<double>(1) / pm.at<double>(2); p.z = 1;
+                    Eigen::Vector3d p(projection.GetX(), projection.GetY(), -1.0);
+                    Eigen::Vector3d pi = pointOfView->GetCameraParameters().GetInverseCameraMatrix() * p;
+                    pi.head<2>() /= pi(2);
 
-                    Eigen::MatrixXd R; cv::cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
-                    Eigen::MatrixXd T; cv::cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
-                    T = -1 * (R * T);
+                    Eigen::MatrixXd R = pointOfView->GetCameraParameters().GetRotationMatrix();
+                    Eigen::MatrixXd T = pointOfView->GetCameraParameters().GetTranslationMatrix();
 
-                    A(2 * i + 0, 0) = R(0, 0) - p.x * R(2, 0);
-                    A(2 * i + 0, 1) = R(0, 1) - p.x * R(2, 1);
-                    A(2 * i + 0, 2) = R(0, 2) - p.x * R(2, 2);
+                    A(2 * i + 0, 0) = R(0, 0) - pi(0) * R(2, 0);
+                    A(2 * i + 0, 1) = R(0, 1) - pi(0) * R(2, 1);
+                    A(2 * i + 0, 2) = R(0, 2) - pi(0) * R(2, 2);
 
-                    A(2 * i + 1, 0) = R(1, 0) - p.y * R(2, 0);
-                    A(2 * i + 1, 1) = R(1, 1) - p.y * R(2, 1);
-                    A(2 * i + 1, 2) = R(1, 2) - p.y * R(2, 2);
+                    A(2 * i + 1, 0) = R(1, 0) - pi(1) * R(2, 0);
+                    A(2 * i + 1, 1) = R(1, 1) - pi(1) * R(2, 1);
+                    A(2 * i + 1, 2) = R(1, 2) - pi(1) * R(2, 2);
 
-                    B(2 * i + 0, 0) = p.x * T(2) - T(0);
-                    B(2 * i + 1, 0) = p.y * T(2) - T(1);
+                    B(2 * i + 0, 0) = pi(0) * T(2) - T(0);
+                    B(2 * i + 1, 0) = pi(1) * T(2) - T(1);
 
                     i++;
                 }

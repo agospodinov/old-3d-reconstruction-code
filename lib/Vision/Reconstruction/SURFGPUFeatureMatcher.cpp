@@ -56,8 +56,8 @@ namespace Xu
                 for (int i = 0; i < imageKeypoints.cols; i++)
                 {
                     projections.push_back(Core::Projection(
-                                static_cast<double>(imageKeypoints.ptr<float>(cv::gpu::SURF_GPU::X_ROW)[i] - pointOfView->GetImage()->GetSize().width),
-                                static_cast<double>(imageKeypoints.ptr<float>(cv::gpu::SURF_GPU::Y_ROW)[i] - pointOfView->GetImage()->GetSize().height),
+                                static_cast<double>(imageKeypoints.ptr<float>(cv::gpu::SURF_GPU::X_ROW)[i]),
+                                static_cast<double>(imageKeypoints.ptr<float>(cv::gpu::SURF_GPU::Y_ROW)[i]),
                                 pointOfView, true));
                 }
 

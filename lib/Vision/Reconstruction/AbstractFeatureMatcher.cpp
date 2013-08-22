@@ -51,8 +51,7 @@ namespace Xu
                                 && rightProjection.GetAssociatedPoint() == nullptr)
                         {
                             Core::Feature &feature = scene->GetFeatures()->CreateFeature();
-                            Core::IImage::Pixel pixel = pointOfView->GetImage()->GetPixel(rightProjection.GetX() + pointOfView->GetImage()->GetSize().width,
-                                                                                          rightProjection.GetY() + pointOfView->GetImage()->GetSize().height);
+                            Core::IImage::Pixel pixel = pointOfView->GetImage()->GetPixel(rightProjection.GetX(), rightProjection.GetY());
                             feature.SetColor(pixel.red, pixel.green, pixel.blue);
 
                             leftProjection.SetAssociatedPoint(&feature);

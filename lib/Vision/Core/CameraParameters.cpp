@@ -1,5 +1,7 @@
 #include "Vision/Core/CameraParameters.h"
 
+#include <Eigen/LU>
+
 namespace Xu
 {
     namespace Vision
@@ -7,93 +9,91 @@ namespace Xu
         namespace Core
         {
             CameraParameters::CameraParameters()
-                : cameraMatrix(cv::Mat::eye(3, 3, CV_64FC1)),
-                  inverseCameraMatrix(cv::Mat::eye(3, 3, CV_64FC1)),
-                  distortionCoefficients(cv::Mat::zeros(4, 1, CV_64FC1)),
-                  rotationMatrix(cv::Mat::eye(3, 3, CV_64FC1)),
-                  translationMatrix(cv::Mat::zeros(3, 1, CV_64FC1)),
+                : cameraMatrix(Math::LinearAlgebra::Matrix<3, 3>::Identity()),
+                  distortionCoefficients(Math::LinearAlgebra::Vector<4>::Zero()),
+                  rotationMatrix(Math::LinearAlgebra::Matrix<3, 3>::Identity()),
+                  translationMatrix(Math::LinearAlgebra::Vector<3>::Zero()),
                   cameraMatrixKnown(false),
                   poseDetermined(false)
             {
             }
 
-            const cv::Mat &CameraParameters::GetCameraMatrix() const
+            const Math::LinearAlgebra::Matrix<3, 3> &CameraParameters::GetCameraMatrix() const
             {
                 return cameraMatrix;
             }
 
-            const cv::Mat &CameraParameters::GetInverseCameraMatrix() const
+            const Math::LinearAlgebra::Matrix<3, 3> CameraParameters::GetInverseCameraMatrix() const
             {
-                return inverseCameraMatrix;
+                return cameraMatrix.inverse();
             }
 
-            void CameraParameters::SetCameraMatrix(const cv::Mat &cameraMatrix)
+            void CameraParameters::SetCameraMatrix(const Math::LinearAlgebra::Matrix<3, 3> &cameraMatrix)
             {
                 this->cameraMatrix = cameraMatrix;
-                cv::invert(this->cameraMatrix, this->inverseCameraMatrix);
             }
 
             double CameraParameters::GetFocalLength() const
             {
                 // This isn't necessarily true for all cameras,
                 // but it simplifies the problem.
-                assert (cameraMatrix.at<double>(0, 0) == cameraMatrix.at<double>(1, 1));
-                return cameraMatrix.at<double>(0, 0);
+                assert (cameraMatrix(0, 0) == cameraMatrix(1, 1));
+                return cameraMatrix(0, 0);
             }
 
             void CameraParameters::SetFocalLength(double focalLength)
             {
-                cameraMatrix.at<double>(0, 0) = focalLength;
-                cameraMatrix.at<double>(1, 1) = focalLength;
-                cv::invert(this->cameraMatrix, this->inverseCameraMatrix);
+                cameraMatrix(0, 0) = cameraMatrix(1, 1) = focalLength;
             }
 
-            const cv::Mat &CameraParameters::GetDistortionCoefficients() const
+            const Math::LinearAlgebra::Vector<Math::LinearAlgebra::RuntimeSized> &CameraParameters::GetDistortionCoefficients() const
             {
                 return distortionCoefficients;
             }
 
-            void CameraParameters::SetDistortionCoefficients(const cv::Mat &distortionCoefficients)
+            void CameraParameters::SetDistortionCoefficients(const Math::LinearAlgebra::Vector<Math::LinearAlgebra::RuntimeSized> &distortionCoefficients)
             {
+                assert(distortionCoefficients.rows() == 2
+                       || distortionCoefficients.rows() == 4
+                       || distortionCoefficients.rows() == 5
+                       || distortionCoefficients.rows() == 8);
                 this->distortionCoefficients = distortionCoefficients;
             }
 
-            cv::Mat CameraParameters::GetPoseMatrix() const
+            Math::LinearAlgebra::Matrix<3, 4> CameraParameters::GetPoseMatrix() const
             {
-                cv::Mat poseMatrix;
-                hconcat(rotationMatrix, translationMatrix, poseMatrix);
-                CV_Assert(poseMatrix.rows == 3 && poseMatrix.cols == 4);
+                Math::LinearAlgebra::Matrix<3, 4> poseMatrix;
+                poseMatrix << rotationMatrix, translationMatrix;
                 return poseMatrix;
             }
 
-            void CameraParameters::SetPoseMatrix(const cv::Mat &poseMatrix)
+            void CameraParameters::SetPoseMatrix(const Math::LinearAlgebra::Matrix<3, 4> &poseMatrix)
             {
-                CV_Assert(poseMatrix.rows == 3 && poseMatrix.cols == 4);
-                rotationMatrix = poseMatrix.colRange(0, 2);
+                rotationMatrix = poseMatrix.block(0, 0, 3, 3);
                 translationMatrix = poseMatrix.col(3);
             }
 
-            const cv::Mat &CameraParameters::GetRotationMatrix() const
+            const Math::LinearAlgebra::Matrix<3, 3> &CameraParameters::GetRotationMatrix() const
             {
                 return rotationMatrix;
             }
 
-            void CameraParameters::SetRotationMatrix(const cv::Mat &rotationMatrix)
+            void CameraParameters::SetRotationMatrix(const Math::LinearAlgebra::Matrix<3, 3> &rotationMatrix)
             {
                 this->rotationMatrix = rotationMatrix;
             }
 
-            const cv::Mat &CameraParameters::GetTranslationMatrix() const
+            const Math::LinearAlgebra::Vector<3> &CameraParameters::GetTranslationMatrix() const
             {
                 return translationMatrix;
             }
 
-            void CameraParameters::SetTranslationMatrix(const cv::Mat &translationMatrix)
+            void CameraParameters::SetTranslationMatrix(const Math::LinearAlgebra::Vector<3> &translationMatrix)
             {
                 this->translationMatrix = translationMatrix;
             }
 
-            cv::Mat CameraParameters::GetProjectionMatrix() const
+            Math::LinearAlgebra::Matrix<3, 4> CameraParameters::GetProjectionMatrix() const
             {
                 return GetCameraMatrix() * GetPoseMatrix();
             }
@@ -105,7 +105,7 @@ namespace Xu
 
             void CameraParameters::SetCameraMatrixKnown(bool cameraMatrixKnown)
             {
-                this->cameraMatrix = cameraMatrixKnown;
+                this->cameraMatrixKnown = cameraMatrixKnown;
             }
 
             bool CameraParameters::IsPoseDetermined() const

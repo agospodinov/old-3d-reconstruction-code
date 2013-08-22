@@ -59,20 +59,29 @@ namespace Xu
                     return;
                 }
 
-                cv::Mat cameraMatrix = pointOfView->GetCameraParameters().GetCameraMatrix();
-                cv::Mat distortionCoefficients = pointOfView->GetCameraParameters().GetDistortionCoefficients();
+                Math::LinearAlgebra::Matrix<3, 3> cameraMatrix = pointOfView->GetCameraParameters().GetCameraMatrix();
+                Math::LinearAlgebra::Vector<Math::LinearAlgebra::RuntimeSized> distortionCoefficients = pointOfView->GetCameraParameters().GetDistortionCoefficients();
 
+                cv::Mat cameraMat; cv::eigen2cv(cameraMatrix, cameraMat);
+                cv::Mat distCoeffs; cv::eigen2cv(distortionCoefficients, distCoeffs);
                 cv::Mat rotation, translation;
                 std::vector<int> inliers;
-                cv::solvePnPRansac(pointCloud, imagePoints, cameraMatrix, distortionCoefficients, rotation, translation, false, 100, threshold, 0.9 * pointCloud.size(), inliers);
+                cv::solvePnPRansac(pointCloud, imagePoints, cameraMat, distCoeffs, rotation, translation, false, 100, threshold, 0.9 * pointCloud.size(), inliers);
+
+                for (int i = 0; i < features.size(); i++)
+                {
+                    if (std::find(inliers.begin(), inliers.end(), i) == inliers.end())
+                    {
+                        features.at(i)->RemoveProjection(pointOfView);
+                    }
+                }
 
                 // optimize for R, T and f
 
-                auto cameraRefineFunctor = [&inliers, &pointCloud, &imagePoints](const Eigen::VectorXd &input) -> Eigen::VectorXd
+                auto cameraRefineFunctor = [&inliers, &pointCloud, &imagePoints, cameraMatrix](const Eigen::VectorXd &input) -> Eigen::VectorXd
                 {
-                    Math::LinearAlgebra::Matrix<3, 3> K = Eigen::Matrix3d::Identity();
+                    Math::LinearAlgebra::Matrix<3, 3> K = cameraMatrix;
                     K(0, 0) = K(1, 1) = input(6);
-                    Math::LinearAlgebra::Matrix<3, 4> P;
 
                     cv::Mat rvec(3, 1, CV_64FC1), rmat;
                     rvec.at<double>(0) = input(0);
@@ -85,14 +94,15 @@ namespace Xu
                     Eigen::Vector3d translationVector;
                     translationVector << input(3), input(4), input(5);
 
+                    Math::LinearAlgebra::Matrix<3, 4> P;
                     P.block(0, 0, 3, 3) = rotationMatrix;
                     P.col(3) = translationVector;
 
-                    Math::LinearAlgebra::Matrix<3, 4> KP = K * P;
+                    Math::LinearAlgebra::Matrix<3, 4> KP = cameraMatrix * P;
 
                     Eigen::VectorXd results(2 * inliers.size());
 
-                    #pragma omp parallel for
+//                    #pragma omp parallel for
                     for (std::size_t i = 0; i < inliers.size(); i++)
                     {
                         cv::Point3f objectPoint = pointCloud.at(inliers.at(i));
@@ -119,7 +129,7 @@ namespace Xu
                 cv::cv2eigen(translation, translationVector);
 
                 Eigen::VectorXd projection(7);
-                double focalLength = cameraMatrix.at<double>(0, 0);
+                double focalLength = cameraMatrix(0, 0);
                 projection << rotationVector, translationVector, focalLength;
                 bool more = false;
                 do
@@ -127,10 +137,9 @@ namespace Xu
                     Math::Optimization::LevenbergMarquardt<> lm(cameraRefineFunctor, 7, 2 * inliers.size());
                     lm.Minimize(projection);
 
-                    Eigen::Matrix3d K = Eigen::Matrix3d::Identity();
-                    Eigen::Matrix3d rotationMatrix;
                     focalLength = projection(6);
-                    K(0, 0) = K(1, 1) = focalLength;
+                    cameraMatrix(0, 0) = cameraMatrix(1, 1) = focalLength;
+                    Math::LinearAlgebra::Matrix<3, 3> rotationMatrix;
                     rotationVector << projection(0), projection(1), projection(2);
                     cv::Mat srcR, dstR;
                     cv::eigen2cv(rotationVector, srcR);
@@ -139,7 +148,7 @@ namespace Xu
                     translationVector << projection(3), projection(4), projection(5);
                     Math::LinearAlgebra::Matrix<3, 4> poseMatrix;
                     poseMatrix << rotationMatrix, translationVector;
-                    Math::LinearAlgebra::Matrix<3, 4> projectionMatrix = K * poseMatrix;
+                    Math::LinearAlgebra::Matrix<3, 4> projectionMatrix = cameraMatrix * poseMatrix;
 
                     more = false;
 
@@ -173,18 +182,16 @@ namespace Xu
                 }
                 while (more);
 
-                focalLength = projection(6);
-                cv::Mat rotationMatrix, translationMatrix;
+                Math::LinearAlgebra::Matrix<3, 3> rotationMatrix;
 
-                cv::Mat rotationVec;
+                cv::Mat rotationVec, rotationMat;
                 cv::eigen2cv(rotationVector, rotationVec);
-                cv::Rodrigues(rotationVec, rotationMatrix);
-
-                cv::eigen2cv(translationVector, translationMatrix);
+                cv::Rodrigues(rotationVec, rotationMat);
+                cv::cv2eigen(rotationMat, rotationMatrix);
 
                 pointOfView->GetCameraParameters().SetRotationMatrix(rotationMatrix);
-                pointOfView->GetCameraParameters().SetTranslationMatrix(-1.0 * (rotationMatrix.t() * translationMatrix));
-                pointOfView->GetCameraParameters().SetFocalLength(focalLength);
+                pointOfView->GetCameraParameters().SetTranslationMatrix(translationVector);
+                pointOfView->GetCameraParameters().SetCameraMatrix(cameraMatrix);
 
                 pointOfView->GetCameraParameters().SetPoseDetermined(true);
             }

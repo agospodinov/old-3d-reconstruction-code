@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <math.h>
 
+#include <eigen3/Eigen/Core>
+
+#include <opencv2/core/eigen.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 
 #include <five-point.hpp>
@@ -28,8 +31,8 @@ namespace Xu
             SceneReconstructor::SceneReconstructor(std::shared_ptr<Core::SingleViewCamera> camera)
                 : camera(camera),
                   scene(new Core::Scene()),
-                  featureMatcher(new SURFGPUFeatureMatcher(*scene)),
-//                  featureMatcher(new GFTTFeatureMatcher(*scene)),
+//                  featureMatcher(new SURFGPUFeatureMatcher(*scene)),
+                  featureMatcher(new GFTTFeatureMatcher(*scene)),
                   bundleAdjuster(new BundleAdjuster(scene)),
                   denseMatcher(new DenseMatcher(scene)),
                   poseEstimator(new PoseEstimator(scene)),
@@ -79,6 +82,8 @@ namespace Xu
             void SceneReconstructor::InitialReconstruction()
             {
                 double focalLength = currentPointOfView->GetCameraParameters().GetFocalLength();
+                cv::Point2d principalPoint(currentPointOfView->GetCameraParameters().GetCameraMatrix()(0, 2),
+                                           currentPointOfView->GetCameraParameters().GetCameraMatrix()(1, 2));
 
                 // pair<pov*, pov*>
                 auto mostMatchesPair = scene->GetFeatures()->FindPairWithMostMatches();
@@ -104,20 +109,23 @@ namespace Xu
                     return;
                 }
 
-                cv::Mat essentialMatrix = findEssentialMat(leftImagePoints, rightImagePoints, focalLength);
-                essentialMatrix.at<double>(0, 2) = -essentialMatrix.at<double>(0, 2);
-                essentialMatrix.at<double>(1, 2) = -essentialMatrix.at<double>(1, 2);
-                essentialMatrix.at<double>(2, 0) = -essentialMatrix.at<double>(2, 0);
-                essentialMatrix.at<double>(2, 1) = -essentialMatrix.at<double>(2, 1);
+                cv::Mat essentialMatrix = findEssentialMat(leftImagePoints, rightImagePoints, focalLength, principalPoint);
+//                essentialMatrix.at<double>(0, 2) = -essentialMatrix.at<double>(0, 2);
+//                essentialMatrix.at<double>(1, 2) = -essentialMatrix.at<double>(1, 2);
+//                essentialMatrix.at<double>(2, 0) = -essentialMatrix.at<double>(2, 0);
+//                essentialMatrix.at<double>(2, 1) = -essentialMatrix.at<double>(2, 1);
 
-                cv::Mat rotationMatrix, translationMatrix;
-                recoverPose(essentialMatrix, leftImagePoints, rightImagePoints, rotationMatrix, translationMatrix, focalLength);
+                cv::Mat rotation, translation;
+                recoverPose(essentialMatrix, leftImagePoints, rightImagePoints, rotation, translation, focalLength, principalPoint);
 
-                leftPOV->GetCameraParameters().SetRotationMatrix(cv::Mat::eye(3, 3, CV_64FC1));
-                leftPOV->GetCameraParameters().SetTranslationMatrix(cv::Mat::zeros(3, 1, CV_64FC1));
+                Math::LinearAlgebra::Matrix<3, 3> rotationMatrix; cv::cv2eigen(rotation, rotationMatrix);
+                Math::LinearAlgebra::Vector<3> translationMatrix; cv::cv2eigen(translation, translationMatrix);
+
+                leftPOV->GetCameraParameters().SetRotationMatrix(Math::LinearAlgebra::Matrix<3, 3>::Identity());
+                leftPOV->GetCameraParameters().SetTranslationMatrix(Math::LinearAlgebra::Vector<3>::Zero());
 
                 rightPOV->GetCameraParameters().SetRotationMatrix(rotationMatrix);
-                rightPOV->GetCameraParameters().SetTranslationMatrix(-1.0 * (rotationMatrix.t() * translationMatrix));
+                rightPOV->GetCameraParameters().SetTranslationMatrix(translationMatrix);
 
                 leftPOV->GetCameraParameters().SetPoseDetermined(true);
                 rightPOV->GetCameraParameters().SetPoseDetermined(true);

@@ -1,6 +1,7 @@
 #include "Vision/Reconstruction/BundleAdjuster.h"
 
-#include <opencv2/contrib/contrib.hpp>
+#include <Eigen/Core>
+#include <opencv2/core/eigen.hpp>
 
 #include <sba.h>
 
@@ -132,17 +133,20 @@ namespace Xu
                 for (int i = 0; i < cameraCount; i++)
                 {
                     const std::shared_ptr<Core::PointOfView> &pointOfView = params.pointsOfView.at(i);
-                    cv::Mat rotationMatrix = pointOfView->GetCameraParameters().GetRotationMatrix();
-                    cv::Mat rotation; cv::Rodrigues(rotationMatrix, rotation);
-                    cv::Mat translation = pointOfView->GetCameraParameters().GetTranslationMatrix();
+                    Math::LinearAlgebra::Matrix<3, 3> rotationMatrix = pointOfView->GetCameraParameters().GetRotationMatrix();
+                    cv::Mat rmat(3, 3, CV_64FC1), rvec;
+                    cv::eigen2cv(rotationMatrix, rmat);
+                    cv::Rodrigues(rmat, rvec);
 
-                    parameters[i * cameraParametersCount + 0] = translation.at<double>(0);
-                    parameters[i * cameraParametersCount + 1] = translation.at<double>(1);
-                    parameters[i * cameraParametersCount + 2] = translation.at<double>(2);
+                    Math::LinearAlgebra::Vector<3> translation = pointOfView->GetCameraParameters().GetTranslationMatrix();
 
-                    parameters[i * cameraParametersCount + 3] = rotation.at<double>(0);
-                    parameters[i * cameraParametersCount + 4] = rotation.at<double>(1);
-                    parameters[i * cameraParametersCount + 5] = rotation.at<double>(2);
+                    parameters[i * cameraParametersCount + 0] = translation(0);
+                    parameters[i * cameraParametersCount + 1] = translation(1);
+                    parameters[i * cameraParametersCount + 2] = translation(2);
+
+                    parameters[i * cameraParametersCount + 3] = rvec.at<double>(0);
+                    parameters[i * cameraParametersCount + 4] = rvec.at<double>(1);
+                    parameters[i * cameraParametersCount + 5] = rvec.at<double>(2);
 
                     parameters[i * cameraParametersCount + 6] = pointOfView->GetCameraParameters().GetFocalLength();
                 }
@@ -232,18 +236,18 @@ namespace Xu
                 {
                     std::shared_ptr<Core::PointOfView> &pointOfView = params.pointsOfView.at(i);
 
-                    cv::Mat translationMatrix(3, 1, CV_64FC1);
-                    translationMatrix.at<double>(0) = parameters[i * cameraParametersCount + 0];
-                    translationMatrix.at<double>(1) = parameters[i * cameraParametersCount + 1];
-                    translationMatrix.at<double>(2) = parameters[i * cameraParametersCount + 2];
+                    Math::LinearAlgebra::Vector<3> translationMatrix;
+                    translationMatrix(0) = parameters[i * cameraParametersCount + 0];
+                    translationMatrix(1) = parameters[i * cameraParametersCount + 1];
+                    translationMatrix(2) = parameters[i * cameraParametersCount + 2];
 
-                    cv::Mat rotation(3, 1, CV_64FC1);
-                    rotation.at<double>(0) = parameters[i * cameraParametersCount + 3];
-                    rotation.at<double>(1) = parameters[i * cameraParametersCount + 4];
-                    rotation.at<double>(2) = parameters[i * cameraParametersCount + 5];
-
-                    cv::Mat rotationMatrix(3, 3, CV_64FC1);
-                    cv::Rodrigues(rotation, rotationMatrix);
+                    cv::Mat rvec(3, 1, CV_64FC1), rmat;
+                    rvec.at<double>(0) = parameters[i * cameraParametersCount + 3];
+                    rvec.at<double>(1) = parameters[i * cameraParametersCount + 4];
+                    rvec.at<double>(2) = parameters[i * cameraParametersCount + 5];
+                    Math::LinearAlgebra::Matrix<3, 3> rotationMatrix;
+                    cv::Rodrigues(rvec, rmat);
+                    cv::cv2eigen(rmat, rotationMatrix);
 
                     double focalLength = parameters[i * cameraParametersCount + 6];
                     std::cout << "Focal length estimate for camera " << i << ": " << focalLength << std::endl;
@@ -273,50 +277,55 @@ namespace Xu
 
             void BundleAdjuster::ProjectPoint(int j, int i, double *cameraParams, double *pointParams, double *projection, void *additionalData)
             {
-                cv::Mat translation(3, 1, CV_64FC1);
-                translation.at<double>(0) = cameraParams[0];
-                translation.at<double>(1) = cameraParams[1];
-                translation.at<double>(2) = cameraParams[2];
+                using namespace Math::LinearAlgebra;
+                SbaParameters *params = static_cast<SbaParameters *>(additionalData);
 
-                cv::Mat rotation(3, 1, CV_64FC1);
-                rotation.at<double>(0) = cameraParams[3];
-                rotation.at<double>(1) = cameraParams[4];
-                rotation.at<double>(2) = cameraParams[5];
+                Vector<3> translation;
+                translation << cameraParams[0], cameraParams[1], cameraParams[2];
 
-                cv::Mat rotationMatrix(3, 3, CV_64FC1);
-                cv::Rodrigues(rotation, rotationMatrix);
+                cv::Mat rvec(3, 1, CV_64FC1), rmat;
+                rvec.at<double>(0) = cameraParams[3];
+                rvec.at<double>(1) = cameraParams[4];
+                rvec.at<double>(2) = cameraParams[5];
+                Matrix<3, 3> rotationMatrix;
+                cv::Rodrigues(rvec, rmat);
+                cv::cv2eigen(rmat, rotationMatrix);
+
+                Matrix<3, 4> P;
+                P << rotationMatrix, translation;
 
                 double focalLength = cameraParams[6];
+                Matrix<3, 3> K = params->pointsOfView.at(j)->GetCameraParameters().GetCameraMatrix();
+                K(0, 0) = K(1, 1) = focalLength;
 
-                double x = pointParams[0];
-                double y = pointParams[1];
-                double z = pointParams[2];
+                Vector<4> point;
+                point << pointParams[0], pointParams[1], pointParams[2], 1;
 
-                cv::Mat point(3, 1, CV_64FC1);
-                point.at<double>(0) = x - translation.at<double>(0);
-                point.at<double>(1) = y - translation.at<double>(1);
-                point.at<double>(2) = z - translation.at<double>(2);
-                point = rotationMatrix * point;
+                Vector<3> projectedPoint = K * P * point;
+                projectedPoint.head<2>() /= projectedPoint(2);
 
-                projection[0] = -point.at<double>(0) * focalLength / point.at<double>(2);
-                projection[1] = -point.at<double>(1) * focalLength / point.at<double>(2);
+                projection[0] = projectedPoint(0);
+                projection[1] = projectedPoint(1);
             }
 
             void BundleAdjuster::ProjectPointStructureOnly(int j, int i, double *pointParams, double *projection, void *additionalData)
             {
-                SbaParameters *params = (SbaParameters *) additionalData;
+                using namespace Math::LinearAlgebra;
+                SbaParameters *params = static_cast<SbaParameters *>(additionalData);
 
                 double cameraParams[7];
-                cameraParams[0] = params->pointsOfView.at(j)->GetCameraParameters().GetTranslationMatrix().at<double>(0);
-                cameraParams[1] = params->pointsOfView.at(j)->GetCameraParameters().GetTranslationMatrix().at<double>(1);
-                cameraParams[2] = params->pointsOfView.at(j)->GetCameraParameters().GetTranslationMatrix().at<double>(2);
+                cameraParams[0] = params->pointsOfView.at(j)->GetCameraParameters().GetTranslationMatrix()(0);
+                cameraParams[1] = params->pointsOfView.at(j)->GetCameraParameters().GetTranslationMatrix()(1);
+                cameraParams[2] = params->pointsOfView.at(j)->GetCameraParameters().GetTranslationMatrix()(2);
 
-                cv::Mat rotationMatrix = params->pointsOfView.at(j)->GetCameraParameters().GetRotationMatrix();
-                cv::Mat rotation; cv::Rodrigues(rotationMatrix, rotation);
+                Matrix<3, 3> rotationMatrix = params->pointsOfView.at(j)->GetCameraParameters().GetRotationMatrix();
+                cv::Mat rmat(3, 3, CV_64FC1), rvec;
+                cv::eigen2cv(rotationMatrix, rmat);
+                cv::Rodrigues(rmat, rvec);
 
-                cameraParams[3] = rotation.at<double>(0);
-                cameraParams[4] = rotation.at<double>(1);
-                cameraParams[5] = rotation.at<double>(2);
+                cameraParams[3] = rvec.at<double>(0);
+                cameraParams[4] = rvec.at<double>(1);
+                cameraParams[5] = rvec.at<double>(2);
 
                 cameraParams[6] = params->pointsOfView.at(j)->GetCameraParameters().GetFocalLength();
 
@@ -325,7 +334,7 @@ namespace Xu
 
             void BundleAdjuster::ProjectPointMotionOnly(int j, int i, double *cameraParams, double *projection, void *additionalData)
             {
-                SbaParameters *params = (SbaParameters *) additionalData;
+                SbaParameters *params = static_cast<SbaParameters *>(additionalData);
 
                 double pointParams[3];
                 pointParams[0] = params->triangulatedPoints.at(i)->GetX();

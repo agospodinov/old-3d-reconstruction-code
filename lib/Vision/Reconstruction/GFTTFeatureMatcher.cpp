@@ -33,8 +33,8 @@ namespace Xu
 
                     for (const cv::Point2f &point : this->currentCorners)
                     {
-                        projections.push_back(Core::Projection(static_cast<double>(point.x) - pointOfView->GetImage()->GetSize().width,
-                                                               static_cast<double>(point.y) - pointOfView->GetImage()->GetSize().height,
+                        projections.push_back(Core::Projection(static_cast<double>(point.x),
+                                                               static_cast<double>(point.y),
                                                                pointOfView, true));
                     }
                 }
@@ -73,8 +73,8 @@ namespace Xu
                     {
                         cv::Point2f cornerInCurrentImage = currentCorners.at(match.second);
 
-                        projections.push_back(Core::Projection(static_cast<double>(cornerInCurrentImage.x) - pointOfView->GetImage()->GetSize().width,
-                                                               static_cast<double>(cornerInCurrentImage.y) - pointOfView->GetImage()->GetSize().height,
+                        projections.push_back(Core::Projection(static_cast<double>(cornerInCurrentImage.x),
+                                                               static_cast<double>(cornerInCurrentImage.y),
                                                                pointOfView, true));
 
                         matches.push_back(Match(match.first, match.second));
