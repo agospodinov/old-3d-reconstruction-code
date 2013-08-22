@@ -79,7 +79,6 @@ namespace Xu
 
                 std::cout << "Applying mask... " << std::flush;
                 image.copyTo(foreground, binMask);
-                cv::cvtColor(foreground, foreground, CV_RGB2BGR);
 
                 std::shared_ptr<Vision::Core::IImage> foregroundImage(new Vision::Core::SingleViewImage(foreground));
                 Xu::Core::Data<std::shared_ptr<Vision::Core::IImage> > objectData(foregroundImage);

@@ -222,22 +222,25 @@ namespace Xu
 
 //            Projection Point::ProjectPoint(const std::shared_ptr<PointOfView> &pointOfView) const
 //            {
-//                Eigen::MatrixXd R; cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
-//                Eigen::MatrixXd T; cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
-//                T = -1 * (R * T);
+//                Eigen::MatrixXd R; cv::cv2eigen(pointOfView->GetCameraParameters().GetRotationMatrix(), R);
+//                Eigen::MatrixXd T; cv::cv2eigen(pointOfView->GetCameraParameters().GetTranslationMatrix(), T);
 
 //                Eigen::MatrixXd point(3, 1); point(0) = x; point(1) = y; point(2) = z;
 //                Eigen::MatrixXd projectedPoint(3, 1);
+//                point -= T;
 //                projectedPoint = R * point;
-//                projectedPoint += T;
+//                projectedPoint.head<2>() /= projectedPoint(2);
 
-//                return Projection(projectedPoint(0) / projectedPoint(2), projectedPoint(1) / projectedPoint(2), pointOfView);
+//                projectedPoint(0) = -point.at<double>(0) * focalLength / point.at<double>(2);
+//                projectedPoint(1) = -point.at<double>(1) * focalLength / point.at<double>(2);
+
+//                return Projection(projectedPoint(0), projectedPoint(1), pointOfView);
 //            }
 
-//            double Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const
+//            boost::optional<double> Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const
 //            {
-//                double distance = -1.0;
-//                auto projection = GetProjection(pointOfView);
+//                boost::optional<double> distance;
+//                boost::optional<Projection> projection = GetProjection(pointOfView);
 //                if (projection.is_initialized())
 //                {
 //                    double dx, dy;

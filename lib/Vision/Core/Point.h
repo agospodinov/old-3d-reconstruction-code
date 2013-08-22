@@ -61,7 +61,7 @@ namespace Xu
 
                     void Triangulate(bool reset = false, bool optimize = true);
 
-//                    double EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const;
+//                    boost::optional<double> EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const;
 //                    Projection ProjectPoint(const std::shared_ptr<PointOfView> &pointOfView) const;
 
                 private:
