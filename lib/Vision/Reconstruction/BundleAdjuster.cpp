@@ -21,8 +21,8 @@ namespace Xu
             {
             }
 
-            BundleAdjuster::BundleAdjuster(Core::Scene &scene)
-                : scene(&scene),
+            BundleAdjuster::BundleAdjuster(const std::shared_ptr<Core::Scene> &scene)
+                : scene(scene),
                   adjustedCameras(0),
                   adjustedPoints(0)
             {
@@ -31,7 +31,6 @@ namespace Xu
             void BundleAdjuster::EstimateCameraPose(std::shared_ptr<Core::PointOfView> &pointOfView)
             {
                 SbaParameters params = PrepareData(MOTION_ONLY);
-                // can this leak? perhaps use weak_ptrs?
                 params.pointsOfView.push_back(pointOfView);
 
                 Run(0, params.pointsOfView.size() - 1, params);
@@ -49,9 +48,9 @@ namespace Xu
                 Run(0, 0, params);
             }
 
-            void BundleAdjuster::Reset(Core::Scene &scene)
+            void BundleAdjuster::Reset(const std::shared_ptr<Core::Scene> &scene)
             {
-                this->scene = &scene;
+                this->scene = scene;
             }
 
             BundleAdjuster::SbaParameters BundleAdjuster::PrepareData(SbaMode mode)
@@ -68,14 +67,13 @@ namespace Xu
                 }
 
                 // FIXME
-//                std::vector<std::shared_ptr<Core::PointOfView> > existingPointsOfView = features->GetPointsOfView();
-//                for (const std::shared_ptr<Core::PointOfView> &pointOfView : existingPointsOfView)
-//                {
-//                    if (pointOfView->GetCameraParameters().IsPoseDetermined())
-//                    {
-//                        params.pointsOfView.push_back(pointOfView);
-//                    }
-//                }
+                for (const std::shared_ptr<Core::PointOfView> &pointOfView : pointsOfView)
+                {
+                    if (pointOfView->GetCameraParameters().IsPoseDetermined())
+                    {
+                        params.pointsOfView.push_back(pointOfView);
+                    }
+                }
 
                 return params;
             }

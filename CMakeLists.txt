@@ -31,4 +31,3 @@ elseif(UNIX)
 elseif(APPLE)
     link_directories("${PROJECT_SOURCE_DIR}/vendor/lib/macosx")
 endif()
-

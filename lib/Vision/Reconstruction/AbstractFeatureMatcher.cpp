@@ -40,6 +40,8 @@ namespace Xu
                 {
                     std::vector<Match> matches = MatchAlgorithmSpecificFeatures(previousPOV.first, currentPOV.first);
 
+                    CorrectMatches(matches, previousPOV, currentPOV);
+
                     for (Match &match : matches)
                     {
                         Core::Projection &leftProjection = previousPOV.second.at(match.leftFeatureIndex);
@@ -84,138 +86,69 @@ namespace Xu
                 previousPointsOfView.push_back(currentPOV);
             }
 
-            void AbstractFeatureMatcher::CorrectMatches(std::vector<Match> &matches, const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV) const
+            void AbstractFeatureMatcher::CorrectMatches(std::vector<Match> &matches, std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > &leftPOV, std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > &rightPOV) const
             {
-//                if (matches.size() == 0)
-//                {
-//                    return;
-//                }
+                static bool first = true;
 
-//                std::vector<cv::Point2d> leftImagePoints, rightImagePoints;
-//                leftImagePoints.reserve(matches.size());
-//                rightImagePoints.reserve(matches.size());
+                if (matches.size() == 0)
+                {
+                    return;
+                }
 
-//                for (const Match &match : matches)
-//                {
-//                    Core::IImage::Size leftImageSize = leftPOV.GetImage()->GetSize();
-//                    Core::IImage::Size rightImageSize = rightPOV.GetImage()->GetSize();
-//                    leftImagePoints.push_back(cv::Point2d(match.leftPoint.x - 0.5 * leftImageSize.width, match.leftPoint.y - 0.5 * leftImageSize.height));
-//                    rightImagePoints.push_back(cv::Point2d(match.rightPoint.x - 0.5 * rightImageSize.width, match.rightPoint.y - 0.5 * rightImageSize.height));
-//                }
+                std::vector<cv::Point2d> leftImagePoints, rightImagePoints;
+                leftImagePoints.reserve(matches.size());
+                rightImagePoints.reserve(matches.size());
 
-//                std::vector<uchar> status(leftImagePoints.size());
+                for (const Match &match : matches)
+                {
+                    leftImagePoints.push_back(cv::Point2d(leftPOV.second.at(match.leftFeatureIndex).GetX(), leftPOV.second.at(match.leftFeatureIndex).GetY()));
+                    rightImagePoints.push_back(cv::Point2d(rightPOV.second.at(match.rightFeatureIndex).GetX(), rightPOV.second.at(match.rightFeatureIndex).GetY()));
+                }
 
-//                cv::Mat fundamentalMatrix = cv::findFundamentalMat(leftImagePoints, rightImagePoints, cv::FM_RANSAC, 3.0, 0.99, status);
+                std::vector<uchar> status(matches.size());
 
-//                std::cout << "Inliers as determined by the fundamental matrix: " << cv::countNonZero(status) << " / " << status.size() << std::endl;
+                cv::Mat fundamentalMatrix = cv::findFundamentalMat(leftImagePoints, rightImagePoints, cv::FM_RANSAC, 3.0, 0.999, status);
 
-//                if (cv::countNonZero(status) == 0)
-//                {
-//                    return;
-//                }
+                std::cout << "Inliers as determined by the fundamental matrix: " << cv::countNonZero(status) << " / " << status.size() << std::endl;
 
-//                //    std::cout << "Fundamental matrix: " << std::endl << fundamentalMatrix << std::endl << std::endl;
+                if (cv::countNonZero(status) == 0)
+                {
+                    return;
+                }
 
-//                std::vector<cv::Point2d> leftImageGoodPoints, rightImageGoodPoints;
-//                std::vector<cv::Point2d> correctedLeftImagePoints, correctedRightImagePoints;
+                std::vector<cv::Point2d> leftImageGoodPoints, rightImageGoodPoints;
 
-//                for (int i = status.size() - 1; i > 0; i--)
-//                {
-//                    if (status.at(i) == 0) // If the point is an outlier
-//                    {
-//                        matches.erase(matches.begin() + i);
-//                    }
-//                }
+                for (int i = status.size() - 1; i >= 0; i--)
+                {
+                    if (status.at(i) == 0) // If the point is an outlier
+                    {
+                        matches.erase(matches.begin() + i);
+                    }
+                }
 
-//                for (const Match &match : matches)
-//                {
-//                    Core::IImage::Size leftImageSize = leftPOV->GetImage()->GetSize();
-//                    Core::IImage::Size rightImageSize = rightPOV->GetImage()->GetSize();
-//                    leftImageGoodPoints.push_back(cv::Point2d(match.leftPoint.x - 0.5 * leftImageSize.width, match.leftPoint.y - 0.5 * leftImageSize.height));
-//                    rightImageGoodPoints.push_back(cv::Point2d(match.rightPoint.x - 0.5 * rightImageSize.width, match.rightPoint.y - 0.5 * rightImageSize.height));
-//                }
+                if (first)
+                {
+                    for (const Match &match : matches)
+                    {
+                        leftImageGoodPoints.push_back(cv::Point2d(leftPOV.second.at(match.leftFeatureIndex).GetX(), leftPOV.second.at(match.leftFeatureIndex).GetY()));
+                        rightImageGoodPoints.push_back(cv::Point2d(rightPOV.second.at(match.rightFeatureIndex).GetX(), rightPOV.second.at(match.rightFeatureIndex).GetY()));
+                    }
 
-//                cv::correctMatches(fundamentalMatrix, leftImageGoodPoints, rightImageGoodPoints, correctedLeftImagePoints, correctedRightImagePoints);
+                    std::vector<cv::Point2d> correctedLeftImagePoints, correctedRightImagePoints;
+                    cv::correctMatches(fundamentalMatrix, leftImageGoodPoints, rightImageGoodPoints, correctedLeftImagePoints, correctedRightImagePoints);
 
-//                for (int i = 0; i < matches.size(); i++)
-//                {
-//                    Match &match = matches[i];
-//                    Core::IImage::Size leftImageSize = leftPOV->GetImage()->GetSize();
-//                    Core::IImage::Size rightImageSize = rightPOV->GetImage()->GetSize();
-//                    match.leftPoint = cv::Point2d(correctedLeftImagePoints.at(i).x + 0.5 * leftImageSize.width, correctedLeftImagePoints.at(i).y + 0.5 * leftImageSize.height);
-//                    match.rightPoint = cv::Point2d(correctedRightImagePoints.at(i).x + 0.5 * rightImageSize.width, correctedRightImagePoints.at(i).y + 0.5 * rightImageSize.height);
-//                }
+                    for (int i = 0; i < matches.size(); i++)
+                    {
+                        const Match &match = matches[i];
+                        leftPOV.second.at(match.leftFeatureIndex).SetX(correctedLeftImagePoints.at(i).x);
+                        leftPOV.second.at(match.leftFeatureIndex).SetY(correctedLeftImagePoints.at(i).y);
+                        rightPOV.second.at(match.rightFeatureIndex).SetX(correctedRightImagePoints.at(i).x);
+                        rightPOV.second.at(match.rightFeatureIndex).SetY(correctedRightImagePoints.at(i).y);
+                    }
+                }
+
+                first = false;
             }
-
-//            void AbstractFeatureMatcher::CreateAndMatchFeatures()
-//            {
-//                //#pragma omp parallel for
-//                for (int previousPOVIndex = GetNthLastImageIndex(); previousPOVIndex < GetCurrentImageIndex(); previousPOVIndex++)
-//                {
-//                    int currentPOVIndex = GetCurrentImageIndex();
-
-//                    std::shared_ptr<Core::PointOfView> &previousPOV = GetPointOfView(previousPOVIndex);
-//                    std::shared_ptr<Core::PointOfView> &currentPOV = GetPointOfView(currentPOVIndex);
-
-//                    std::vector<std::shared_ptr<Core::Feature> > &leftImageFeatures = previousPOV->GetFeatures();
-//                    std::vector<std::shared_ptr<Core::Feature> > &rightImageFeatures = currentPOV->GetFeatures();
-
-//                    MatchList matches = MatchAlgorithmSpecificFeatures(previousPOVIndex, currentPOVIndex);
-
-//                    CorrectMatches(matches, previousPOV, currentPOV);
-
-//                    for (const Match &match : matches)
-//                    {
-//                        std::shared_ptr<Core::Feature> leftFeature = leftImageFeatures.at(match.leftFeatureIndex);
-//                        std::shared_ptr<Core::Feature> rightFeature = rightImageFeatures.at(match.rightFeatureIndex);
-
-//                        if (leftFeature != NULL && rightFeature != NULL)
-//                        {
-//                            // FIXME
-//                            Core::Feature mergedFeature = Core::Feature::Merge(*leftFeature, *rightFeature);
-
-//                            std::shared_ptr<Core::Feature> newFeature = std::make_shared<Core::Feature>(mergedFeature);
-
-//                            // FIXME
-//                            for (const auto &it: newFeature->GetCorrespondeces())
-//                            {
-//                                std::shared_ptr<Core::PointOfView> pointOfView = it.first.lock();
-//                                // FIXME
-//                                if (newFeature->HasCorrespondenceInView(pointOfView))
-//                                {
-//                                    // FIXME
-//                                    int index = newFeature->GetPointIndexInView(pointOfView);
-//                                    std::vector<std::shared_ptr<Core::Feature> > &features = pointOfView->GetFeatures();
-//                                    features[index] = newFeature;
-//                                }
-//                            }
-
-//                            leftImageFeatures[match.leftFeatureIndex] = newFeature;
-//                            rightImageFeatures[match.rightFeatureIndex] = newFeature;
-//                        }
-//                        else if (leftFeature != NULL && rightFeature == NULL)
-//                        {
-//                            // FIXME
-//                            leftFeature->AddCorrespondence(currentPOV, match.rightFeatureIndex, match.rightPoint);
-//                            rightImageFeatures[match.rightFeatureIndex] = leftFeature;
-//                        }
-//                        else if (leftFeature == NULL && rightFeature != NULL)
-//                        {
-//                            // FIXME
-//                            rightFeature->AddCorrespondence(previousPOV, match.leftFeatureIndex, match.leftPoint);
-//                            leftImageFeatures[match.leftFeatureIndex] = rightFeature;
-//                        }
-//                        else
-//                        {
-//                            std::shared_ptr<Core::Feature> newFeature = CreateFeature(previousPOV, currentPOV, match);
-
-//                            leftImageFeatures[match.leftFeatureIndex] = newFeature;
-//                            rightImageFeatures[match.rightFeatureIndex] = newFeature;
-//                        }
-//                    }
-//                }
-//            }
-
         }
     }
 }

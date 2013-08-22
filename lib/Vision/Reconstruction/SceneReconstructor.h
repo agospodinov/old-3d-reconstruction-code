@@ -27,6 +27,7 @@ namespace Xu
             class DenseMatcher;
             class IImageMatcher;
             class BundleAdjuster;
+            class PoseEstimator;
 
             class SceneReconstructor
             {
@@ -43,7 +44,6 @@ namespace Xu
                     void TriangulatePoints(bool optimize = true);
 
                     void InitialReconstruction();
-                    bool EstimateCameraPose(const std::shared_ptr<Core::PointOfView> &pointOfView, cv::Mat &rotationMatrix, cv::Mat &translationMatrix);
 
                     void AddForReconstruction(std::shared_ptr<Core::PointOfView> pointOfView);
 
@@ -56,11 +56,11 @@ namespace Xu
 
                     std::unique_ptr<DenseMatcher> denseMatcher;
 
+                    std::unique_ptr<PoseEstimator> poseEstimator;
+
                     std::unique_ptr<BundleAdjuster> bundleAdjuster;
 
                     std::shared_ptr<Core::SingleViewCamera> camera;
-
-                    std::queue<std::shared_ptr<Core::PointOfView> > matchedPointsOfView;
 
                     std::shared_ptr<Core::PointOfView> lastPointOfView;
                     std::shared_ptr<Core::PointOfView> currentPointOfView;

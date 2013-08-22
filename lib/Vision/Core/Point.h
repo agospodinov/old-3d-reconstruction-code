@@ -48,16 +48,21 @@ namespace Xu
                     void SetColor(uchar r, uchar g, uchar b);
 
                     bool IsTriangulated() const;
+                    void SetTriangulated(bool triangulated)
+                    {
+                        this->triangulated = triangulated;
+                    }
 
                     const std::vector<Projection> &GetProjections() const;
                     const boost::optional<Projection> GetProjection(const std::shared_ptr<PointOfView> &pointOfView) const;
                     bool HasProjection(const std::shared_ptr<PointOfView> &pointOfView) const;
                     void AddProjection(const Projection &projection);
+                    void RemoveProjection(const std::shared_ptr<PointOfView> &pointOfView);
 
                     void Triangulate(bool reset = false, bool optimize = true);
 
-//                    double EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const;
-//                    cv::Point2d ProjectPoint(std::shared_ptr<PointOfView> pointOfView) const;
+//                    boost::optional<double> EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const;
+//                    Projection ProjectPoint(const std::shared_ptr<PointOfView> &pointOfView) const;
 
                 private:
                     friend bool operator ==(const Point &left, const Point &right);

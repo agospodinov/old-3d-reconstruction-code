@@ -17,6 +17,7 @@
 #include "Vision/Reconstruction/DenseMatcher.h"
 #include "Vision/Reconstruction/SURFGPUFeatureMatcher.h"
 #include "Vision/Reconstruction/GFTTFeatureMatcher.h"
+#include "Vision/Reconstruction/PoseEstimator.h"
 
 namespace Xu
 {
@@ -29,8 +30,9 @@ namespace Xu
                   scene(new Core::Scene()),
                   featureMatcher(new SURFGPUFeatureMatcher(*scene)),
 //                  featureMatcher(new GFTTFeatureMatcher(*scene)),
-                  bundleAdjuster(new BundleAdjuster(*scene)),
+                  bundleAdjuster(new BundleAdjuster(scene)),
                   denseMatcher(new DenseMatcher(scene)),
+                  poseEstimator(new PoseEstimator(scene)),
                   running(false),
                   initialTriangulation(false)
             {
@@ -131,12 +133,6 @@ namespace Xu
 
             }
 
-            bool SceneReconstructor::EstimateCameraPose(const std::shared_ptr<Core::PointOfView> &pointOfView, cv::Mat &rotationMatrix, cv::Mat &translationMatrix)
-            {
-                return false;
-            }
-
-
             void SceneReconstructor::AddForReconstruction(std::shared_ptr<Core::PointOfView> pointOfView)
             {
                 if (!pointOfView->GetImage()->HasDepth())
@@ -144,7 +140,7 @@ namespace Xu
                     if (lastPointOfView == NULL)
                     {
                         scene->ResetFeatures();
-                        bundleAdjuster->Reset(*scene);
+                        bundleAdjuster->Reset(scene);
 
                         initialTriangulation = false;
                         lastPointOfView = pointOfView;
@@ -161,14 +157,18 @@ namespace Xu
                     if (!initialTriangulation)
                     {
                         InitialReconstruction();
+                        bundleAdjuster->AddPOV(lastPointOfView);
+                        bundleAdjuster->AddPOV(currentPointOfView);
+                        bundleAdjuster->RunOnAllData();
 
                         lastPointOfView = currentPointOfView;
 
                         return;
                     }
 
-                    cv::Mat rotationMatrix, translationMatrix;
-                    if (!EstimateCameraPose(currentPointOfView, rotationMatrix, translationMatrix))
+                    poseEstimator->EstimateCameraPose(currentPointOfView);
+
+                    if (!currentPointOfView->GetCameraParameters().IsPoseDetermined())
                     {
                         std::cout << "Failed to estimate camera pose." << std::endl;
 
@@ -177,9 +177,11 @@ namespace Xu
                         return;
                     }
 
-                    currentPointOfView->GetCameraParameters().SetPoseDetermined(false);
+//                    bundleAdjuster->EstimateCameraPose(currentPointOfView);
+//                    bundleAdjuster->AddPOV(currentPointOfView);
+//                    bundleAdjuster->RunOnAllData();
 
-//                    shouldRunBundleAdjustment = true;
+                    TriangulatePoints(true);
 //                    bundleAdjuster->RunOnAllData();
 
                     lastPointOfView = currentPointOfView;

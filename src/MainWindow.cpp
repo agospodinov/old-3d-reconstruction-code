@@ -8,7 +8,11 @@
 #include <qt4/QtGui/QFileDialog>
 #include <qt4/QtGui/QMessageBox>
 
+#include <pcl/visualization/pcl_visualizer.h>
+
 #include "Vision/Core/IImage.h"
+#include "Vision/Core/Scene.h"
+#include "Vision/Core/FeatureSet.h"
 #include "Vision/Recognition/StaticObjectDetector.h"
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -85,6 +89,50 @@ void MainWindow::OnReconstructButtonClicked()
     sceneReconstructor = std::unique_ptr<Xu::Vision::Reconstruction::SceneReconstructor>(new Xu::Vision::Reconstruction::SceneReconstructor(camera));
 
     sceneReconstructor->Run();
+
+    std::shared_ptr<Xu::Vision::Core::Scene> scene = sceneReconstructor->GetScene();
+
+    bool update = false;
+    if (scene->GetFeatures()->Size() != 0)
+    {
+        std::thread viewerThread([scene]()
+        {
+            std::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
+
+            pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+
+            for (auto it = scene->GetFeatures()->Begin(); it != scene->GetFeatures()->End(); ++it)
+            {
+                if (it->IsTriangulated())
+                {
+                    pcl::PointXYZRGB point;
+                    point.x = (float) it->GetX(); point.y = (float) it->GetY(); point.z = (float) it->GetZ();
+                    uint32_t rgb = (static_cast<uint32_t>(it->GetR()) << 16 | static_cast<uint32_t>(it->GetG()) << 8 | static_cast<uint32_t>(it->GetB()));
+                    point.rgb = *reinterpret_cast<float*>(&rgb);
+
+                    pclPointCloud->points.push_back(point);
+                }
+            }
+
+            viewer = std::make_shared<pcl::visualization::PCLVisualizer>("3D viewer");
+            viewer->setBackgroundColor(0.1, 0.1, 0.1);
+            viewer->addPointCloud(pclPointCloud, "features");
+            //    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "sample cloud");
+            viewer->addCoordinateSystem(1.0);
+            viewer->initCameraParameters();
+
+            while (!viewer->wasStopped())
+            {
+                viewer->spinOnce(100);
+            }
+        });
+
+        viewerThread.detach();
+    }
+    else
+    {
+        QMessageBox::warning(this, "Scene empty", "The scene has no points to display.", QMessageBox::Ok);
+    }
 }
 
 void MainWindow::OnDetectObjectsButtonClicked()

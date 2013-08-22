@@ -28,10 +28,6 @@ namespace Xu
                     void ResetPointCloud();
                     /// end remove
 
-
-                    void UpdatePoints();
-                    void ShowPointCloud();
-
                 private:
                     std::unique_ptr<FeatureSet> features;
                     std::unique_ptr<PointCloud> pointCloud;

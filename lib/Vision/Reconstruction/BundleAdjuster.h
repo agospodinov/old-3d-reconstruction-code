@@ -22,12 +22,17 @@ namespace Xu
             {
                 public:
                     BundleAdjuster();
-                    BundleAdjuster(Core::Scene &scene);
+                    BundleAdjuster(const std::shared_ptr<Core::Scene> &scene);
 
                     void EstimateCameraPose(std::shared_ptr<Core::PointOfView> &pointOfView);
                     void RunOnNewData();
                     void RunOnAllData();
-                    void Reset(Core::Scene &scene);
+                    void Reset(const std::shared_ptr<Core::Scene> &scene);
+
+                    inline void AddPOV(std::shared_ptr<Core::PointOfView> &pointOfView)
+                    {
+                        pointsOfView.push_back(pointOfView);
+                    }
 
                 private:
 
@@ -62,7 +67,8 @@ namespace Xu
                     static void ProjectPointStructureOnly(int j, int i, double *pointParams, double *projection, void *additionalData);
                     static void ProjectPointMotionOnly(int j, int i, double *cameraParams, double *projection, void *additionalData);
 
-                    Core::Scene *scene;
+                    std::shared_ptr<Core::Scene> scene;
+                    std::vector<std::shared_ptr<Core::PointOfView> > pointsOfView;
 
                     int adjustedPoints, adjustedCameras;
             };

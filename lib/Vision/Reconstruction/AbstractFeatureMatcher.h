@@ -48,7 +48,7 @@ namespace Xu
                     virtual std::vector<Match> MatchAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV) = 0;
 
                 private:
-                    void CorrectMatches(std::vector<Match> &matches, const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV) const;
+                    void CorrectMatches(std::vector<Match> &matches, std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > &leftPOV, std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > &rightPOV) const;
 
                     Core::Scene * const scene;
 
