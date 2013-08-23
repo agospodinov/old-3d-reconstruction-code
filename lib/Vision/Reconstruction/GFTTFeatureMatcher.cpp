@@ -31,6 +31,30 @@ namespace Xu
                     cv::goodFeaturesToTrack(currentGray, currentCorners, 1000, qualityLevel, 10);
                     this->currentCorners = std::move(currentCorners);
 
+//                    for (int i = 0; i < this->currentCorners.size(); i++)
+//                    {
+//                        bool isNew = true;
+//                        const cv::Point2f &cornerInCurrentImage = newCorners.at(i);
+//                        for (int j = 0; j < this->currentCorners.size(); j++)
+//                        {
+//                            const cv::Point2f &trackedCornerInCurrentImage = currentCorners.at(j);
+
+//                            // If the OF tracked point and the newly located point are very close by
+//                            // assume they are the same point.
+//                            if (std::fabs(cornerInCurrentImage.x - trackedCornerInCurrentImage.x) < 5.0f &&
+//                                    std::fabs(cornerInCurrentImage.y - trackedCornerInCurrentImage.y) < 5.0f)
+//                            {
+//                                isNew = false;
+//                                break;
+//                            }
+//                        }
+
+//                        if (isNew)
+//                        {
+//                            this->currentCorners.push_back(newCorners.at(i));
+//                        }
+//                    }
+
                     for (const cv::Point2f &point : this->currentCorners)
                     {
                         projections.push_back(Core::Projection(static_cast<double>(point.x),
@@ -42,71 +66,30 @@ namespace Xu
                 {
                     std::vector<uchar> status;
                     currentCorners.clear();
+                    matches.clear();
                     // We could use the errors as a distance when adding new points for the algorithm to track
                     cv::calcOpticalFlowPyrLK(lastGray, currentGray, lastCorners, currentCorners, status, cv::noArray());
+                    assert(lastCorners.size() == currentCorners.size());
 
-                    std::vector<std::pair<int, int> > matchesx; // FIXME rename
-                    int index = 0;
-                    int keepIndex = 0;
-                    auto shouldRemove = [&](const cv::Point2f &point) {
-                        if (status[index] == 0)
-                        {
-                            index++;
-                            return true;
-                        }
-                        else if (point.x < 0 || point.x > pointOfView->GetImage()->GetSize().width ||
-                                 point.y < 0 || point.y > pointOfView->GetImage()->GetSize().height)
-                        {
-                            index++;
-                            return true;
-                        }
-                        matchesx.push_back(std::make_pair(index, keepIndex));
-                        index++;
-                        keepIndex++;
-                        return false;
-                    };
-
-                    currentCorners.erase(std::remove_if(currentCorners.begin(), currentCorners.end(), shouldRemove), currentCorners.end());
-
-                    matches.clear();
-                    for (const std::pair<int, int> &match : matchesx)
+                    std::size_t i, k;
+                    for (i = 0, k = 0; i < currentCorners.size(); i++)
                     {
-                        cv::Point2f cornerInCurrentImage = currentCorners.at(match.second);
+                        if (status.at(i) == 0)
+                        {
+                            continue;
+                        }
+
+                        cv::Point2f cornerInCurrentImage = currentCorners.at(i);
 
                         projections.push_back(Core::Projection(static_cast<double>(cornerInCurrentImage.x),
                                                                static_cast<double>(cornerInCurrentImage.y),
                                                                pointOfView, true));
 
-                        matches.push_back(Match(match.first, match.second));
+                        matches.push_back(Match(i, k));
+
+                        currentCorners.at(k++) = currentCorners.at(i);
                     }
-
-                    if (currentCorners.size() < minimumFeatureThreshold)
-                    {
-                        std::vector<cv::Point2f> newCorners;
-                        cv::goodFeaturesToTrack(currentGray, newCorners, 1000, qualityLevel, 10);
-                        for (int i = 0; i < newCorners.size(); i++)
-                        {
-                            bool isNew = true;
-                            const cv::Point2f &cornerInCurrentImage = newCorners.at(i);
-                            for (int j = 0; j < this->currentCorners.size(); j++)
-                            {
-                                const cv::Point2f &trackedCornerInCurrentImage = currentCorners.at(j);
-
-                                // If the OF tracked point and the newly located point are very close by
-                                // assume they are the same point.
-                                if (std::fabs(cornerInCurrentImage.x - trackedCornerInCurrentImage.x) < 5.0f &&
-                                        std::fabs(cornerInCurrentImage.y - trackedCornerInCurrentImage.y) < 5.0f)
-                                {
-                                    isNew = false;
-                                }
-                            }
-
-                            if (isNew)
-                            {
-                                currentCorners.push_back(newCorners.at(i));
-                            }
-                        }
-                    }
+                    currentCorners.resize(k);
                 }
 
                 lastGray = currentGray;
