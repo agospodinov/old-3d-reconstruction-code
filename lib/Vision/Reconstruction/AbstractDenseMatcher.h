@@ -1,6 +1,10 @@
 #ifndef ABSTRACTDENSEMATCHER_H
 #define ABSTRACTDENSEMATCHER_H
 
+#include <vector>
+
+#include <opencv2/core/core.hpp>
+
 #include "IImageMatcher.h"
 
 namespace Xu
@@ -12,9 +16,18 @@ namespace Xu
             class AbstractDenseMatcher : public IImageMatcher
             {
                 public:
-                    AbstractDenseMatcher();
+                    AbstractDenseMatcher(std::size_t bundleSize = 4, std::size_t iterations = 3);
 
-                    virtual void AddImage(std::shared_ptr<Core::PointOfView> &pointOfView);
+                    virtual void ProcessImage(std::shared_ptr<Core::PointOfView> &pointOfView);
+
+                protected:
+                    virtual cv::Mat GetFlowMatrix(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> rightPOV) = 0;
+
+                private:
+                    std::shared_ptr<Core::PointOfView> referencePOV;
+                    std::vector<std::shared_ptr<Core::PointOfView> > bundle;
+
+                    std::size_t iterations;
             };
         }
     }
