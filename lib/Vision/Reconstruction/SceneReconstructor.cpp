@@ -110,10 +110,6 @@ namespace Xu
                 }
 
                 cv::Mat essentialMatrix = findEssentialMat(leftImagePoints, rightImagePoints, focalLength, principalPoint);
-//                essentialMatrix.at<double>(0, 2) = -essentialMatrix.at<double>(0, 2);
-//                essentialMatrix.at<double>(1, 2) = -essentialMatrix.at<double>(1, 2);
-//                essentialMatrix.at<double>(2, 0) = -essentialMatrix.at<double>(2, 0);
-//                essentialMatrix.at<double>(2, 1) = -essentialMatrix.at<double>(2, 1);
 
                 cv::Mat rotation, translation;
                 recoverPose(essentialMatrix, leftImagePoints, rightImagePoints, rotation, translation, focalLength, principalPoint);

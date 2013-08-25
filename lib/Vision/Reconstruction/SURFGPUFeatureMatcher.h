@@ -17,7 +17,6 @@ namespace Xu
     {
         namespace Reconstruction
         {
-
             class SURFGPUFeatureMatcher : public AbstractFeatureMatcher
             {
                 public:
