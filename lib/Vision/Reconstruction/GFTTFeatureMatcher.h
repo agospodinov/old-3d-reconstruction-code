@@ -12,7 +12,7 @@ namespace Xu
             class GFTTFeatureMatcher : public AbstractFeatureMatcher
             {
                 public:
-                    GFTTFeatureMatcher(Core::Scene &scene, int minimumFeatureThreshold = 45, float qualityLevel = 0.1);
+                    GFTTFeatureMatcher(const std::shared_ptr<Core::Scene> &scene, int minimumFeatureThreshold = 45, float qualityLevel = 0.1);
 
                     virtual std::vector<Core::Projection> DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView);
                     virtual std::vector<Match> MatchAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV);

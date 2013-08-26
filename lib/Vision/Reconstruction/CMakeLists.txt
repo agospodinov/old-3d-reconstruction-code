@@ -1,6 +1,7 @@
 set(RECONSTRUCTION_LIB_SOURCES
     AbstractFeatureMatcher.cpp		AbstractFeatureMatcher.h
     SURFGPUFeatureMatcher.cpp		SURFGPUFeatureMatcher.h
+    FASTFeatureMatcher.cpp          FASTFeatureMatcher.h
     GFTTFeatureMatcher.cpp          GFTTFeatureMatcher.h
     AbstractDenseMatcher.cpp		AbstractDenseMatcher.h
     DenseMatcher.cpp                DenseMatcher.h

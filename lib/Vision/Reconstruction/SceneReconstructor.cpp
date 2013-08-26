@@ -20,6 +20,7 @@
 #include "Vision/Reconstruction/DenseMatcher.h"
 #include "Vision/Reconstruction/SURFGPUFeatureMatcher.h"
 #include "Vision/Reconstruction/GFTTFeatureMatcher.h"
+#include "Vision/Reconstruction/FASTFeatureMatcher.h"
 #include "Vision/Reconstruction/PoseEstimator.h"
 
 namespace Xu
@@ -31,8 +32,9 @@ namespace Xu
             SceneReconstructor::SceneReconstructor(std::shared_ptr<Core::SingleViewCamera> camera)
                 : camera(camera),
                   scene(new Core::Scene()),
-//                  featureMatcher(new SURFGPUFeatureMatcher(*scene)),
-                  featureMatcher(new GFTTFeatureMatcher(*scene)),
+                  featureMatcher(new SURFGPUFeatureMatcher(scene)),
+//                  featureMatcher(new GFTTFeatureMatcher(scene)),
+//                  featureMatcher(new FASTFeatureMatcher(scene)),
                   bundleAdjuster(new BundleAdjuster(scene)),
                   denseMatcher(new DenseMatcher(scene)),
                   poseEstimator(new PoseEstimator(scene)),
@@ -110,10 +112,6 @@ namespace Xu
                 }
 
                 cv::Mat essentialMatrix = findEssentialMat(leftImagePoints, rightImagePoints, focalLength, principalPoint);
-//                essentialMatrix.at<double>(0, 2) = -essentialMatrix.at<double>(0, 2);
-//                essentialMatrix.at<double>(1, 2) = -essentialMatrix.at<double>(1, 2);
-//                essentialMatrix.at<double>(2, 0) = -essentialMatrix.at<double>(2, 0);
-//                essentialMatrix.at<double>(2, 1) = -essentialMatrix.at<double>(2, 1);
 
                 cv::Mat rotation, translation;
                 recoverPose(essentialMatrix, leftImagePoints, rightImagePoints, rotation, translation, focalLength, principalPoint);
@@ -174,6 +172,7 @@ namespace Xu
                         return;
                     }
 
+//                    return;
                     poseEstimator->EstimateCameraPose(currentPointOfView);
 
                     if (!currentPointOfView->GetCameraParameters().IsPoseDetermined())

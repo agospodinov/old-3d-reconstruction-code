@@ -214,21 +214,45 @@ namespace Xu
                 {
                     Refine3DPosition(usefulProjections);
                 }
+
+                double totalError = 0.0;
+                for (const Projection &actualProjection : usefulProjections)
+                {
+                    double error = EstimateError(actualProjection.GetPointOfView()).get();
+
+                    // Be brutal about any outlying points
+//                    if (error > 8.0)
+//                    {
+//                        RemoveProjection(actualProjection.GetPointOfView());
+//                    }
+
+                    totalError += error;
+                }
+                totalError /= static_cast<double>(usefulProjections.size());
+
+                // Be brutal about badly triangulated points
+                if (totalError > 16.0)
+                {
+                    triangulated = false;
+                }
+
             }
 
-            Projection Point::ProjectPoint(const std::shared_ptr<PointOfView> &pointOfView) const
+            Projection Point::ProjectPoint(const std::shared_ptr<PointOfView> &pointOfView)
             {
                 Math::LinearAlgebra::Matrix<3, 4> P = pointOfView->GetCameraParameters().GetProjectionMatrix();
 
+                // TODO: change to:
+                // Vector3d point; Vector2d projectedPoint = (P * point.homogeneous()).hnormalized();
                 Eigen::Vector4d point; point << x, y, z, 1;
                 Eigen::Vector3d projectedPoint;
                 projectedPoint = P * point;
                 projectedPoint.head<2>() /= projectedPoint(2);
 
-                return Projection(projectedPoint(0), projectedPoint(1), pointOfView);
+                return Projection(projectedPoint(0), projectedPoint(1), pointOfView, this, false);
             }
 
-            boost::optional<double> Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView) const
+            boost::optional<double> Point::EstimateError(const std::shared_ptr<PointOfView> &pointOfView)
             {
                 boost::optional<double> distance;
                 boost::optional<Projection> projection = GetProjection(pointOfView);

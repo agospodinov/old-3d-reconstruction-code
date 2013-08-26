@@ -17,11 +17,10 @@ namespace Xu
     {
         namespace Reconstruction
         {
-
             class SURFGPUFeatureMatcher : public AbstractFeatureMatcher
             {
                 public:
-                    SURFGPUFeatureMatcher(Core::Scene &scene, int matchNLast = 4, int keepMLastOnGPU = 5);
+                    SURFGPUFeatureMatcher(const std::shared_ptr<Core::Scene> &scene, int matchNLast = 4, int keepMLastOnGPU = 5);
                     virtual ~SURFGPUFeatureMatcher();
 
                     virtual std::vector<Core::Projection> DetectAlgorithmSpecificFeatures(const std::shared_ptr<Core::PointOfView> &pointOfView);
@@ -29,6 +28,7 @@ namespace Xu
 
                 private:
                     cv::gpu::SURF_GPU featureExtractor;
+                    cv::gpu::BruteForceMatcher_GPU<cv::L2<float> > matcher;
 
                     /**
                      * Allowing descriptors to live on the GPU greatly speeds up the process as we
@@ -37,7 +37,6 @@ namespace Xu
                      * so we can only keep a limited amount of them on the GPU.
                      */
                     boost::circular_buffer<std::pair<std::shared_ptr<Core::PointOfView>, cv::gpu::GpuMat> > imageDescriptorsGPU;
-
             };
         }
     }

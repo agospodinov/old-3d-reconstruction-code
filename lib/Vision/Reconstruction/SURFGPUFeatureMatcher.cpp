@@ -16,7 +16,7 @@ namespace Xu
         namespace Reconstruction
         {
 
-            SURFGPUFeatureMatcher::SURFGPUFeatureMatcher(Core::Scene &scene, int matchNLast, int keepMLastOnGPU)
+            SURFGPUFeatureMatcher::SURFGPUFeatureMatcher(const std::shared_ptr<Core::Scene> &scene, int matchNLast, int keepMLastOnGPU)
                 : AbstractFeatureMatcher(scene, matchNLast),
                   imageDescriptorsGPU(keepMLastOnGPU)
             {
@@ -88,9 +88,6 @@ namespace Xu
                     CV_Error(0, "one of the image descriptors matrices is empty");
                 }
 
-                // matching descriptor vectors using Brute Force matcher (only one
-                // implemented in GPU module)
-                cv::gpu::BruteForceMatcher_GPU<cv::L2<float> > matcher;
                 std::vector<AbstractFeatureMatcher::Match> matches;
 
                 std::vector<std::vector<cv::DMatch> > knnMatches;
