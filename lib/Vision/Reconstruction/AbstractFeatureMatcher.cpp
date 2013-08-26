@@ -20,8 +20,8 @@ namespace Xu
     {
         namespace Reconstruction
         {
-            AbstractFeatureMatcher::AbstractFeatureMatcher(Core::Scene &scene, int matchNLast)
-                : scene(&scene),
+            AbstractFeatureMatcher::AbstractFeatureMatcher(const std::shared_ptr<Core::Scene> scene, int matchNLast)
+                : scene(scene),
                   previousPointsOfView(matchNLast)
             {
             }
@@ -39,6 +39,8 @@ namespace Xu
                 for (auto &previousPOV : previousPointsOfView)
                 {
                     std::vector<Match> matches = MatchAlgorithmSpecificFeatures(previousPOV.first, currentPOV.first);
+
+//                    ReconsiderOldPoints(previousPOV.first, previousPOV.second);
 
                     CorrectMatches(matches, previousPOV, currentPOV);
 
@@ -147,6 +149,40 @@ namespace Xu
                 }
 
                 first = false;
+            }
+
+            void AbstractFeatureMatcher::ReconsiderOldPoints(const std::shared_ptr<Core::PointOfView> &pointOfView, std::vector<Core::Projection> detectedFeatures)
+            {
+                if (!pointOfView->GetCameraParameters().IsPoseDetermined())
+                {
+                    return;
+                }
+
+                std::vector<Core::Projection> projectionsInCurrentView;
+                for (auto it = scene->GetFeatures()->Begin(); it != scene->GetFeatures()->End(); ++it)
+                {
+                    Core::Projection projection = it->ProjectPoint(pointOfView);
+                    if (projection.GetX() < 0 || projection.GetY() < 0
+                            || projection.GetX() > pointOfView->GetImage()->GetSize().width
+                            || projection.GetY() > pointOfView->GetImage()->GetSize().height)
+                    {
+                        continue;
+                    }
+
+                    projectionsInCurrentView.push_back(projection);
+                }
+
+                for (const Core::Projection &projection : projectionsInCurrentView)
+                {
+                    for (const Core::Projection &actualFeature : detectedFeatures)
+                    {
+
+                    }
+                }
+
+                // project all points to this POV
+                // see which ones are inside the image
+                // use them and try matching against detected keypoints
             }
         }
     }

@@ -29,9 +29,10 @@ namespace Xu
                 Pixel rgb;
                 if (HasColor())
                 {
-                    uchar r = image.at<uchar>(y, x);
-                    uchar g = image.at<uchar>(y, x);
-                    uchar b = image.at<uchar>(y, x);
+                    cv::Vec3b pixelBgr = image.at<cv::Vec3b>(y, x);
+                    uchar r = pixelBgr[2];
+                    uchar g = pixelBgr[1];
+                    uchar b = pixelBgr[0];
                     rgb = Pixel(r, g, b);
                 }
                 else

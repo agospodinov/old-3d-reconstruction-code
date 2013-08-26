@@ -26,7 +26,7 @@ namespace Xu
             class AbstractFeatureMatcher : public IImageMatcher
             {
                 public:
-                    AbstractFeatureMatcher(Core::Scene &scene, int matchNLast);
+                    AbstractFeatureMatcher(const std::shared_ptr<Core::Scene> scene, int matchNLast);
                     virtual ~AbstractFeatureMatcher();
 
                     virtual void ProcessImage(const std::shared_ptr<Core::PointOfView> &pointOfView);
@@ -49,8 +49,9 @@ namespace Xu
 
                 private:
                     void CorrectMatches(std::vector<Match> &matches, std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > &leftPOV, std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > &rightPOV) const;
+                    void ReconsiderOldPoints(const std::shared_ptr<Core::PointOfView> &pointOfView, std::vector<Core::Projection> detectedFeatures);
 
-                    Core::Scene * const scene;
+                    std::shared_ptr<Core::Scene> scene;
 
                     boost::circular_buffer<std::pair<std::shared_ptr<Core::PointOfView>, std::vector<Core::Projection> > > previousPointsOfView;
             };

@@ -11,7 +11,7 @@ namespace Xu
         namespace Reconstruction
         {
 
-            GFTTFeatureMatcher::GFTTFeatureMatcher(Core::Scene &scene, int minimumFeatureThreshold, float qualityLevel)
+            GFTTFeatureMatcher::GFTTFeatureMatcher(const std::shared_ptr<Core::Scene> &scene, int minimumFeatureThreshold, float qualityLevel)
                 : AbstractFeatureMatcher(scene, 1),
                   minimumFeatureThreshold(minimumFeatureThreshold),
                   qualityLevel(qualityLevel)
@@ -29,6 +29,7 @@ namespace Xu
                 {
                     std::vector<cv::Point2f> currentCorners;
                     cv::goodFeaturesToTrack(currentGray, currentCorners, 1000, qualityLevel, 10);
+//                    cv::cornerSubPix(currentGray, currentCorners, cv::Size(5, 5), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001));
                     this->currentCorners = std::move(currentCorners);
 
 //                    for (int i = 0; i < this->currentCorners.size(); i++)

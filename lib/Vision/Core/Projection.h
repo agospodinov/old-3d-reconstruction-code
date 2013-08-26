@@ -16,6 +16,7 @@ namespace Xu
             {
                 public:
                     Projection(double x, double y, const std::shared_ptr<PointOfView> &pointOfView, bool actualProjection = false);
+                    Projection(double x, double y, const std::shared_ptr<PointOfView> &pointOfView, Point *associatedPoint, bool actualProjection);
 
                     double GetX() const;
                     void SetX(double x);

@@ -9,12 +9,18 @@ namespace Xu
         namespace Core
         {
             Projection::Projection(double x, double y, const std::shared_ptr<PointOfView> &pointOfView, bool actualProjection)
+                : Projection(x, y, pointOfView, nullptr, actualProjection)
+            {
+            }
+
+            Projection::Projection(double x, double y, const std::shared_ptr<PointOfView> &pointOfView, Point *associatedPoint, bool actualProjection)
                 : x(x),
                   y(y),
                   pointOfView(pointOfView),
-                  associatedPoint(nullptr),
+                  associatedPoint(associatedPoint),
                   actualProjection(actualProjection)
             {
+
             }
 
             double Projection::GetX() const
