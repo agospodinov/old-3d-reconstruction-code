@@ -16,7 +16,7 @@ namespace Xu
     {
         namespace Reconstruction
         {
-            /*
+
             class ProjectionFunction : public Math::Calculus::MultivariateFunction<3, 2>
             {
                 public:
@@ -33,17 +33,17 @@ namespace Xu
                 private:
                     std::shared_ptr<Core::PointOfView> pointOfView;
             };
-            */
+
 
             AbstractDenseMatcher::AbstractDenseMatcher(std::size_t bundleSize, std::size_t iterations)
-                : bundle(bundleSize),
+                : comparisonViews(bundleSize),
                   iterations(iterations)
             {
             }
 
             void AbstractDenseMatcher::ProcessImage(std::shared_ptr<Core::PointOfView> &pointOfView)
             {
-                /*
+
                 using namespace Math::LinearAlgebra;
                 using namespace Math::Calculus;
 //                let baseModel = assume known i.e. pcl triangulated featureset
@@ -51,9 +51,11 @@ namespace Xu
                 std::vector<cv::Mat> opticalFlow;
                 std::vector<Jacobian<3, 2> > jacobians;
 
-                for (const std::shared_ptr<Core::PointOfView> &otherPOV : bundle)
+                for (const std::shared_ptr<Core::PointOfView> &otherPOV : comparisonViews)
                 {
-                    opticalFlow.push_back(GetFlowMatrix(referencePOV, otherPOV));
+                    // PCL range image from features
+
+                    opticalFlow.push_back(GetFlowMatrix(referenceView, otherPOV));
 
                     ProjectionFunction projectionFunction(otherPOV);
                     Jacobian<3, 2> jacobian(projectionFunction); // FIXME this will cause segfault
@@ -61,13 +63,13 @@ namespace Xu
                 }
 
                 #pragma omp parallel for
-                for (int y = 0; y < referencePOV->GetImage()->GetSize().height; y++)
+                for (int y = 0; y < referenceView->GetImage()->GetSize().height; y++)
                 {
                     #pragma omp parallel for
-                    for (int x = 0; x < referencePOV->GetImage()->GetSize().width; x++)
+                    for (int x = 0; x < referenceView->GetImage()->GetSize().width; x++)
                     {
                         Vector<2> pixel; pixel << x, y;
-                        Vector<3> ray = (referencePOV->GetCameraParameters().GetRotationMatrix() * pixel.homogeneous().transpose()).normalized();
+                        Vector<3> ray = (referenceView->GetCameraParameters().GetRotationMatrix() * pixel.homogeneous().transpose()).normalized();
                         Vector<3> point; // = intersection(ray, baseModel); // FIXME
                         double lambda = 0.0;
 
@@ -78,9 +80,9 @@ namespace Xu
                             Vector<3> newPoint = point + lambda * ray;
                             Vector<RuntimeSized> Ks, dus;
 
-                            for (int j = 0; j < bundle.size(); j++)
+                            for (int j = 0; j < comparisonViews.size(); j++)
                             {
-                                const std::shared_ptr<Core::PointOfView> &otherPOV = bundle.at(j);
+                                const std::shared_ptr<Core::PointOfView> &otherPOV = comparisonViews.at(j);
                                 Vector<3> projection = otherPOV->GetCameraParameters().GetProjectionMatrix() * newPoint;
                                 projection.head<2>() /= projection(2);
 
@@ -103,7 +105,7 @@ namespace Xu
 
                     }
                 }
-                */
+
             }
 
         }

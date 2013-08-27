@@ -24,8 +24,8 @@ namespace Xu
                     virtual cv::Mat GetFlowMatrix(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> rightPOV) = 0;
 
                 private:
-                    std::shared_ptr<Core::PointOfView> referencePOV;
-                    std::vector<std::shared_ptr<Core::PointOfView> > bundle;
+                    std::shared_ptr<Core::PointOfView> referenceView;
+                    std::vector<std::shared_ptr<Core::PointOfView> > comparisonViews;
 
                     std::size_t iterations;
             };
