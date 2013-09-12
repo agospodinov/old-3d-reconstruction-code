@@ -7,16 +7,21 @@ namespace Xu
 {
     namespace Vision
     {
+        namespace Core
+        {
+            class Scene;
+        }
+
         namespace Recognition
         {
-//            class ShapeBasedObjectDetector : public IObjectDetector
-//            {
-//                public:
-//                    ShapeBasedObjectDetector();
-//                    virtual ~ShapeBasedObjectDetector();
+            class ShapeBasedObjectDetector : public IObjectDetector<std::shared_ptr<Vision::Core::Scene> >
+            {
+                public:
+                    ShapeBasedObjectDetector();
+                    virtual ~ShapeBasedObjectDetector();
 
-//                    virtual std::vector<Xu::Core::Object> Detect(Vision::Core::VisualData data);
-//            };
+                    virtual std::vector<Xu::Core::Object> Detect(Xu::Core::Data<std::shared_ptr<Vision::Core::Scene> > data);
+            };
         }
     }
 }

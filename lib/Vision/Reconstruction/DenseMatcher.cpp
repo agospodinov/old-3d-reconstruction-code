@@ -105,10 +105,10 @@ namespace Xu
                 int verticalStart = 0.15 * image.rows;
                 int verticalEnd = 0.85 * image.rows;
 
-//                #pragma omp parallel for
+                #pragma omp parallel for
                 for (int i = horizontalStart; i < horizontalEnd; i+=3)
                 {
-//                    #pragma omp parallel for
+                    #pragma omp parallel for
                     for (int j = verticalStart; j < verticalEnd; j+=3)
                     {
                         double lowestError = 1e-0;
@@ -165,8 +165,8 @@ namespace Xu
                             right = rightImagePoint;
                         }
 
-//                        #pragma omp critical
-                        if (lowestError < 1e-0)
+                        #pragma omp critical
+//                        if (lowestError < 1e-0)
                         {
                             leftImagePoints.push_back(left);
                             rightImagePoints.push_back(right);
@@ -180,7 +180,7 @@ namespace Xu
                 cv::correctMatches(fundamentalMatrix, leftImagePoints, rightImagePoints, correctedLeftImagePoints, correctedRightImagePoints);
                 assert(correctedLeftImagePoints.size() == correctedRightImagePoints.size());
 
-//                #pragma omp parallel for
+                #pragma omp parallel for
                 for (int i = 0; i < correctedLeftImagePoints.size(); i++)
                 {
 //                    const cv::Point2d &leftImagePoint = correctedLeftImagePoints.at(i);
@@ -201,10 +201,10 @@ namespace Xu
 
                     point.Triangulate(true, true);
 
-//                    #pragma omp critical
+                    #pragma omp critical
                     {
-                        std::cout << point.GetX() << " " << point.GetY() << " " << point.GetZ() << std::endl;
-                        std::cout << static_cast<int>(point.GetR()) << " " << static_cast<int>(point.GetG()) << " " << static_cast<int>(point.GetB()) << std::endl;
+//                        std::cout << point.GetX() << " " << point.GetY() << " " << point.GetZ() << std::endl;
+//                        std::cout << static_cast<int>(point.GetR()) << " " << static_cast<int>(point.GetG()) << " " << static_cast<int>(point.GetB()) << std::endl;
                         scene->GetPointCloud()->AddPoint(std::move(point));
                     }
                 }

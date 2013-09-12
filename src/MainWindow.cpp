@@ -13,6 +13,7 @@
 #include "Vision/Core/IImage.h"
 #include "Vision/Core/Scene.h"
 #include "Vision/Core/FeatureSet.h"
+#include "Vision/Core/PointCloud.h"
 #include "Vision/Recognition/StaticObjectDetector.h"
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -101,7 +102,8 @@ void MainWindow::OnReconstructButtonClicked()
 
             pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
 
-            for (auto it = scene->GetFeatures()->Begin(); it != scene->GetFeatures()->End(); ++it)
+//            for (auto it = scene->GetFeatures()->Begin(); it != scene->GetFeatures()->End(); ++it)
+            for (auto it = scene->GetPointCloud()->GetPoints().begin(); it != scene->GetPointCloud()->GetPoints().end(); ++it)
             {
                 if (it->IsTriangulated())
                 {
@@ -110,6 +112,9 @@ void MainWindow::OnReconstructButtonClicked()
                     uint32_t rgb = (static_cast<uint32_t>(it->GetR()) << 16 | static_cast<uint32_t>(it->GetG()) << 8 | static_cast<uint32_t>(it->GetB()));
                     point.rgb = *reinterpret_cast<float*>(&rgb);
 
+                    std::cout << point.x << " " << point.y << " " << point.z << std::endl;
+                    std::cout << point.rgb << std::endl;
+
                     pclPointCloud->points.push_back(point);
                 }
             }
@@ -117,7 +122,7 @@ void MainWindow::OnReconstructButtonClicked()
             viewer = std::make_shared<pcl::visualization::PCLVisualizer>("3D viewer");
             viewer->setBackgroundColor(0.1, 0.1, 0.1);
             viewer->addPointCloud(pclPointCloud, "features");
-            //    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "sample cloud");
+//            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "sample cloud");
             viewer->addCoordinateSystem(1.0);
             viewer->initCameraParameters();
 

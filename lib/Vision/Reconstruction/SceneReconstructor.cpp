@@ -175,7 +175,7 @@ namespace Xu
                         return;
                     }
 
-//                    return;
+                    return;
                     poseEstimator->EstimateCameraPose(currentPointOfView);
 
                     if (!currentPointOfView->GetCameraParameters().IsPoseDetermined())
