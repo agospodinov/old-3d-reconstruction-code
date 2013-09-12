@@ -167,6 +167,9 @@ namespace Xu
                         bundleAdjuster->AddPOV(currentPointOfView);
                         bundleAdjuster->RunOnAllData();
 
+                        denseMatcher->Add(lastPointOfView);
+                        denseMatcher->Add(currentPointOfView);
+
                         lastPointOfView = currentPointOfView;
 
                         return;

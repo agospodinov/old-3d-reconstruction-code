@@ -26,178 +26,190 @@ namespace Xu
 
             void DenseMatcher::Add(const std::shared_ptr<Core::PointOfView> &pointOfView)
             {
-//                cv::Mat image = pointOfView->GetImage()->GetMatrix();
-//                cv::Mat gray;
+                cv::Mat image = pointOfView->GetImage()->GetMatrix();
+                cv::Mat gray;
 
-//                double scaleFactor = 800.0 / static_cast<double>(std::max(image.rows, image.cols));
-//                cv::resize(image, image, cv::Size(), scaleFactor, scaleFactor);
-//                image.convertTo(image, CV_32F, 1.0 / 255.0);
-//                cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
-//                cv::gpu::GpuMat imageGPU; imageGPU.upload(gray);
-//                if (lastPointOfViewWithImage.first == NULL)
-//                {
-//                    lastPointOfViewWithImage = std::make_pair(pointOfView, imageGPU);
-//                    return;
-//                }
+                double scaleFactor = 800.0 / static_cast<double>(std::max(image.rows, image.cols));
+                cv::resize(image, image, cv::Size(), scaleFactor, scaleFactor);
+                image.convertTo(image, CV_32F, 1.0 / 255.0);
+                cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+                cv::gpu::GpuMat imageGPU; imageGPU.upload(gray);
+                if (lastPointOfViewWithImage.first == NULL)
+                {
+                    lastPointOfViewWithImage = std::make_pair(pointOfView, imageGPU);
+                    return;
+                }
 
-//                std::pair<std::shared_ptr<Core::PointOfView>, cv::gpu::GpuMat> currentPointOfViewWithImage;
-//                currentPointOfViewWithImage = std::make_pair(pointOfView, imageGPU);
+                std::pair<std::shared_ptr<Core::PointOfView>, cv::gpu::GpuMat> currentPointOfViewWithImage;
+                currentPointOfViewWithImage = std::make_pair(pointOfView, imageGPU);
 
-//                // TODO allow changing these parameters
-//                float scale = 0.8;
-//                float alpha = 0.197;
-//                float gamma = 50.0;
-//                int inner = 10;
-//                int outer = 77;
-//                int solver = 10;
+                // TODO allow changing these parameters
+                float scale = 0.8;
+                float alpha = 0.197;
+                float gamma = 50.0;
+                int inner = 10;
+                int outer = 77;
+                int solver = 10;
 
-//                std::cout << "Estimating optical flow... " << std::flush;
+                std::cout << "Estimating optical flow... " << std::flush;
 
-//                cv::Mat forwardHorizontalFlow, forwardVerticalFlow;
-//                cv::Mat backwardHorizontalFlow, backwardVerticalFlow;
-//                cv::gpu::BroxOpticalFlow flow(alpha, gamma, scale, inner, outer, solver);
-//                {
-//                    cv::gpu::GpuMat horizontalFlowGPU, verticalFlowGPU;
+                cv::Mat forwardHorizontalFlow, forwardVerticalFlow;
+                cv::Mat backwardHorizontalFlow, backwardVerticalFlow;
+                cv::gpu::BroxOpticalFlow flow(alpha, gamma, scale, inner, outer, solver);
+                {
+                    cv::gpu::GpuMat horizontalFlowGPU, verticalFlowGPU;
 
-//                    std::cout << "Forward... " << std::flush;
-//                    flow(lastPointOfViewWithImage.second, currentPointOfViewWithImage.second, horizontalFlowGPU, verticalFlowGPU);
-//                    horizontalFlowGPU.download(forwardHorizontalFlow);
-//                    verticalFlowGPU.download(forwardVerticalFlow);
+                    std::cout << "Forward... " << std::flush;
+                    flow(lastPointOfViewWithImage.second, currentPointOfViewWithImage.second, horizontalFlowGPU, verticalFlowGPU);
+                    horizontalFlowGPU.download(forwardHorizontalFlow);
+                    verticalFlowGPU.download(forwardVerticalFlow);
 
-//                    std::cout << "Backward... " << std::flush;
-//                    flow(currentPointOfViewWithImage.second, lastPointOfViewWithImage.second, horizontalFlowGPU, verticalFlowGPU);
-//                    horizontalFlowGPU.download(backwardHorizontalFlow);
-//                    verticalFlowGPU.download(backwardVerticalFlow);
-//                }
+                    std::cout << "Backward... " << std::flush;
+                    flow(currentPointOfViewWithImage.second, lastPointOfViewWithImage.second, horizontalFlowGPU, verticalFlowGPU);
+                    horizontalFlowGPU.download(backwardHorizontalFlow);
+                    verticalFlowGPU.download(backwardVerticalFlow);
+                }
 
-//                std::cout << "Done." << std::endl;
+                std::cout << "Done." << std::endl;
 
-//                lastPointOfViewWithImage.second.release();
+                lastPointOfViewWithImage.second.release();
 
-//                std::vector<cv::Point2d> leftImagePoints, rightImagePoints;
-//                std::vector<cv::Point2d> correctedLeftImagePoints, correctedRightImagePoints;
+                std::vector<cv::Point2d> leftImagePoints, rightImagePoints;
+                std::vector<cv::Point2d> correctedLeftImagePoints, correctedRightImagePoints;
 
-//                scene->GetPointCloud()->ReserveSpace(image.cols * image.rows);
-//                leftImagePoints.reserve(image.cols * image.rows);
-//                rightImagePoints.reserve(image.cols * image.rows);
+                scene->GetPointCloud()->ReserveSpace(image.cols * image.rows);
+                leftImagePoints.reserve(image.cols * image.rows);
+                rightImagePoints.reserve(image.cols * image.rows);
 
-//                const std::shared_ptr<Core::PointOfView> &leftPOV = lastPointOfViewWithImage.first;
-//                const std::shared_ptr<Core::PointOfView> &rightPOV = currentPointOfViewWithImage.first;
-//                std::vector<cv::Point2d> leftPoints, rightPoints;
+                const std::shared_ptr<Core::PointOfView> &leftPOV = lastPointOfViewWithImage.first;
+                const std::shared_ptr<Core::PointOfView> &rightPOV = currentPointOfViewWithImage.first;
+                std::vector<cv::Point2d> leftPoints, rightPoints;
 
-//                // FIXME this will stop working
-//                scene->GetFeatures()->GetCommonPoints(leftPOV, rightPOV, leftPoints, rightPoints);
-//                cv::Mat fundamentalMatrix = cv::findFundamentalMat(leftPoints, rightPoints);
+                std::list<Core::Feature> commonPoints = scene->GetFeatures()->GetCommonPoints(leftPOV, rightPOV);
+                leftPoints.reserve(commonPoints.size());
+                rightPoints.reserve(commonPoints.size());
 
-//                int horizontalStart = 0.15 * image.cols;
-//                int horizontalEnd = 0.85 * image.cols;
-//                int verticalStart = 0.15 * image.rows;
-//                int verticalEnd = 0.85 * image.rows;
+                for (const Core::Feature &point : commonPoints)
+                {
+                    Core::Projection leftProjection = point.GetProjection(leftPOV).get();
+                    leftPoints.emplace_back(leftProjection.GetX(), leftProjection.GetY());
+
+                    Core::Projection rightProjection = point.GetProjection(rightPOV).get();
+                    rightPoints.emplace_back(rightProjection.GetX(), rightProjection.GetY());
+                }
+
+                cv::Mat fundamentalMatrix = cv::findFundamentalMat(leftPoints, rightPoints);
+
+                int horizontalStart = 0.15 * image.cols;
+                int horizontalEnd = 0.85 * image.cols;
+                int verticalStart = 0.15 * image.rows;
+                int verticalEnd = 0.85 * image.rows;
 
 //                #pragma omp parallel for
-//                for (int i = horizontalStart; i < horizontalEnd; i+=3)
-//                {
+                for (int i = horizontalStart; i < horizontalEnd; i+=3)
+                {
 //                    #pragma omp parallel for
-//                    for (int j = verticalStart; j < verticalEnd; j+=3)
-//                    {
-//                        double lowestError = 1e-0;
+                    for (int j = verticalStart; j < verticalEnd; j+=3)
+                    {
+                        double lowestError = 1e-0;
 
-//                        cv::Point2d left, right;
+                        cv::Point2d left, right;
 
-//                        cv::Point2d leftPoint(i, j);
-//                        cv::Point2d rightPoint(
-//                                leftPoint.x + forwardHorizontalFlow.ptr<float>(static_cast<int>(leftPoint.y))[static_cast<int>(leftPoint.x)],
-//                                leftPoint.y + forwardVerticalFlow.ptr<float>(static_cast<int>(leftPoint.y))[static_cast<int>(leftPoint.x)]);
-//                        cv::Point2d leftPointBackwardOF(
-//                                rightPoint.x + backwardHorizontalFlow.ptr<float>(static_cast<int>(rightPoint.y))[static_cast<int>(rightPoint.x)],
-//                                rightPoint.y + backwardVerticalFlow.ptr<float>(static_cast<int>(rightPoint.y))[static_cast<int>(rightPoint.x)]);
+                        cv::Point2d leftPoint(i, j);
+                        cv::Point2d rightPoint(
+                                leftPoint.x + forwardHorizontalFlow.ptr<float>(static_cast<int>(leftPoint.y))[static_cast<int>(leftPoint.x)],
+                                leftPoint.y + forwardVerticalFlow.ptr<float>(static_cast<int>(leftPoint.y))[static_cast<int>(leftPoint.x)]);
+                        cv::Point2d leftPointBackwardOF(
+                                rightPoint.x + backwardHorizontalFlow.ptr<float>(static_cast<int>(rightPoint.y))[static_cast<int>(rightPoint.x)],
+                                rightPoint.y + backwardVerticalFlow.ptr<float>(static_cast<int>(rightPoint.y))[static_cast<int>(rightPoint.x)]);
 
-//                        cv::Point2d leftImagePoint(
-//                                    (leftPoint.x / scaleFactor) - (0.5 * leftPOV->GetImage()->GetSize().width),
-//                                    (leftPoint.y / scaleFactor) - (0.5 * leftPOV->GetImage()->GetSize().height));
+                        cv::Point2d leftImagePoint(
+                                    (leftPoint.x / scaleFactor),
+                                    (leftPoint.y / scaleFactor));
 
-//                        cv::Point2d rightImagePoint(
-//                                    (rightPoint.x / scaleFactor) - (0.5 * rightPOV->GetImage()->GetSize().width),
-//                                    (rightPoint.y / scaleFactor) - (0.5 * rightPOV->GetImage()->GetSize().height));
+                        cv::Point2d rightImagePoint(
+                                    (rightPoint.x / scaleFactor),
+                                    (rightPoint.y / scaleFactor));
 
-//                        cv::Point2d leftImagePointBackwardOF(
-//                                    (leftPointBackwardOF.x / scaleFactor) - (0.5 * leftPOV->GetImage()->GetSize().width),
-//                                    (leftPointBackwardOF.y / scaleFactor) - (0.5 * leftPOV->GetImage()->GetSize().height));
+                        cv::Point2d leftImagePointBackwardOF(
+                                    (leftPointBackwardOF.x / scaleFactor),
+                                    (leftPointBackwardOF.y / scaleFactor));
 
-//                        cv::Mat leftPointMat(3, 1, CV_64FC1), rightPointMat(3, 1, CV_64FC1), leftPointBackwardOFMat(3, 1, CV_64FC1);
-//                        leftPointMat.at<double>(0) = leftImagePoint.x;
-//                        leftPointMat.at<double>(1) = leftImagePoint.y;
-//                        leftPointMat.at<double>(2) = 1;
+                        cv::Mat leftPointMat(3, 1, CV_64FC1), rightPointMat(3, 1, CV_64FC1), leftPointBackwardOFMat(3, 1, CV_64FC1);
+                        leftPointMat.at<double>(0) = leftImagePoint.x;
+                        leftPointMat.at<double>(1) = leftImagePoint.y;
+                        leftPointMat.at<double>(2) = 1;
 
-//                        rightPointMat.at<double>(0) = rightImagePoint.x;
-//                        rightPointMat.at<double>(1) = rightImagePoint.y;
-//                        rightPointMat.at<double>(2) = 1;
+                        rightPointMat.at<double>(0) = rightImagePoint.x;
+                        rightPointMat.at<double>(1) = rightImagePoint.y;
+                        rightPointMat.at<double>(2) = 1;
 
-//                        leftPointBackwardOFMat.at<double>(0) = leftImagePointBackwardOF.x;
-//                        leftPointBackwardOFMat.at<double>(1) = leftImagePointBackwardOF.y;
-//                        leftPointBackwardOFMat.at<double>(2) = 1;
+                        leftPointBackwardOFMat.at<double>(0) = leftImagePointBackwardOF.x;
+                        leftPointBackwardOFMat.at<double>(1) = leftImagePointBackwardOF.y;
+                        leftPointBackwardOFMat.at<double>(2) = 1;
 
-//                        double error = std::fabs(cv::Mat(rightPointMat.t() * fundamentalMatrix * leftPointMat).at<double>(0, 0));
-//                        if (error < lowestError)
-//                        {
-//                            lowestError = error;
+                        double error = std::fabs(cv::Mat(rightPointMat.t() * fundamentalMatrix * leftPointMat).at<double>(0, 0));
+                        if (error < lowestError)
+                        {
+                            lowestError = error;
 
-//                            left = leftImagePoint;
-//                            right = rightImagePoint;
-//                        }
-//                        error = std::fabs(cv::Mat(rightPointMat.t() * fundamentalMatrix * leftPointBackwardOFMat).at<double>(0, 0));
-//                        if (error < lowestError)
-//                        {
-//                            lowestError = error;
+                            left = leftImagePoint;
+                            right = rightImagePoint;
+                        }
+                        error = std::fabs(cv::Mat(rightPointMat.t() * fundamentalMatrix * leftPointBackwardOFMat).at<double>(0, 0));
+                        if (error < lowestError)
+                        {
+                            lowestError = error;
 
-//                            left = leftImagePoint;
-//                            right = rightImagePoint;
-//                        }
+                            left = leftImagePointBackwardOF;
+                            right = rightImagePoint;
+                        }
 
 //                        #pragma omp critical
-//                        {
-//                            leftImagePoints.push_back(left);
-//                            rightImagePoints.push_back(right);
-//                        }
-//                    }
-//                }
+                        if (lowestError < 1e-0)
+                        {
+                            leftImagePoints.push_back(left);
+                            rightImagePoints.push_back(right);
+                        }
+                    }
+                }
 
-//                assert(leftImagePoints.size() == rightImagePoints.size());
-//                correctedLeftImagePoints.reserve(leftImagePoints.size());
-//                correctedRightImagePoints.reserve(rightImagePoints.size());
-//                cv::correctMatches(fundamentalMatrix, leftImagePoints, rightImagePoints, correctedLeftImagePoints, correctedRightImagePoints);
-//                assert(correctedLeftImagePoints.size() == correctedRightImagePoints.size());
+                assert(leftImagePoints.size() == rightImagePoints.size());
+                correctedLeftImagePoints.reserve(leftImagePoints.size());
+                correctedRightImagePoints.reserve(rightImagePoints.size());
+                cv::correctMatches(fundamentalMatrix, leftImagePoints, rightImagePoints, correctedLeftImagePoints, correctedRightImagePoints);
+                assert(correctedLeftImagePoints.size() == correctedRightImagePoints.size());
 
 //                #pragma omp parallel for
-//                for (int i = 0; i < correctedLeftImagePoints.size(); i++)
-//                {
+                for (int i = 0; i < correctedLeftImagePoints.size(); i++)
+                {
 //                    const cv::Point2d &leftImagePoint = correctedLeftImagePoints.at(i);
 //                    const cv::Point2d &rightImagePoint = correctedRightImagePoints.at(i);
 
-////                    const cv::Point2d &leftImagePoint = leftImagePoints.at(i);
-////                    const cv::Point2d &rightImagePoint = rightImagePoints.at(i);
+                    const cv::Point2d &leftImagePoint = leftImagePoints.at(i);
+                    const cv::Point2d &rightImagePoint = rightImagePoints.at(i);
 
-//                    Core::Point point;
-//                    point.SetPosition(leftImagePoint.x, leftImagePoint.y, 1);
-//                    Core::IImage::Pixel pixel = pointOfView->GetImage()->GetPixel(
-//                                                    leftImagePoint.x + (0.5 * leftPOV->GetImage()->GetSize().width),
-//                                                    leftImagePoint.y + (0.5 * leftPOV->GetImage()->GetSize().height));
+                    Core::Point point;
+                    Core::IImage::Pixel pixel = pointOfView->GetImage()->GetPixel(
+                                                    leftImagePoint.x,
+                                                    leftImagePoint.y);
 
-//                    point.SetColor(pixel.red, pixel.green, pixel.blue);
+                    point.SetColor(pixel.red, pixel.green, pixel.blue);
 
-//                    // FIXME x2
-//                    point.AddCorrespondence(leftPOV, leftImagePoint);
-//                    point.AddCorrespondence(rightPOV, rightImagePoint);
+                    point.AddProjection(Core::Projection(leftImagePoint.x, leftImagePoint.y, leftPOV, true));
+                    point.AddProjection(Core::Projection(rightImagePoint.x, rightImagePoint.y, rightPOV, true));
 
-//                    point.Triangulate(true, true);
+                    point.Triangulate(true, true);
 
 //                    #pragma omp critical
-//                    {
-//                        scene->GetPointCloud()->AddPoint(std::move(point));
-//                    }
-//                }
+                    {
+                        std::cout << point.GetX() << " " << point.GetY() << " " << point.GetZ() << std::endl;
+                        std::cout << static_cast<int>(point.GetR()) << " " << static_cast<int>(point.GetG()) << " " << static_cast<int>(point.GetB()) << std::endl;
+                        scene->GetPointCloud()->AddPoint(std::move(point));
+                    }
+                }
 
-//                lastPointOfViewWithImage = currentPointOfViewWithImage;
+                lastPointOfViewWithImage = currentPointOfViewWithImage;
             }
 
 //            std::vector<Core::Point> DenseMatcher::GeneratePointCloud(const std::shared_ptr<Core::PointOfView> &leftPOV, const std::shared_ptr<Core::PointOfView> &rightPOV, const cv::Mat &fundamentalMatrix)
