@@ -55,8 +55,11 @@ namespace Xu
 
                 cv::Mat forwardHorizontalFlow, forwardVerticalFlow;
                 cv::Mat backwardHorizontalFlow, backwardVerticalFlow;
-                cv::gpu::BroxOpticalFlow flow(alpha, gamma, scale, inner, outer, solver);
+
+                #define BROX_OVER_TVL1
+                #ifdef BROX_OVER_TVL1
                 {
+                    cv::gpu::BroxOpticalFlow flow(alpha, gamma, scale, inner, outer, solver);
                     cv::gpu::GpuMat horizontalFlowGPU, verticalFlowGPU;
 
                     std::cout << "Forward... " << std::flush;
@@ -69,6 +72,22 @@ namespace Xu
                     horizontalFlowGPU.download(backwardHorizontalFlow);
                     verticalFlowGPU.download(backwardVerticalFlow);
                 }
+                #else
+                {
+                    cv::gpu::OpticalFlowDual_TVL1_GPU flow;
+                    cv::gpu::GpuMat horizontalFlowGPU, verticalFlowGPU;
+
+                    std::cout << "Forward... " << std::flush;
+                    flow(lastPointOfViewWithImage.second, currentPointOfViewWithImage.second, horizontalFlowGPU, verticalFlowGPU);
+                    horizontalFlowGPU.download(forwardHorizontalFlow);
+                    verticalFlowGPU.download(forwardVerticalFlow);
+
+                    std::cout << "Backward... " << std::flush;
+                    flow(currentPointOfViewWithImage.second, lastPointOfViewWithImage.second, horizontalFlowGPU, verticalFlowGPU);
+                    horizontalFlowGPU.download(backwardHorizontalFlow);
+                    verticalFlowGPU.download(backwardVerticalFlow);
+                }
+                #endif
 
                 std::cout << "Done." << std::endl;
 

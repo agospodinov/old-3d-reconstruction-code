@@ -187,6 +187,7 @@ namespace Xu
                         return;
                     }
 
+                    denseMatcher->Add(currentPointOfView);
 //                    bundleAdjuster->EstimateCameraPose(currentPointOfView);
 //                    bundleAdjuster->AddPOV(currentPointOfView);
 //                    bundleAdjuster->RunOnAllData();

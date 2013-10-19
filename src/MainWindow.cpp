@@ -93,7 +93,6 @@ void MainWindow::OnReconstructButtonClicked()
 
     std::shared_ptr<Xu::Vision::Core::Scene> scene = sceneReconstructor->GetScene();
 
-    bool update = false;
     if (scene->GetFeatures()->Size() != 0)
     {
         std::thread viewerThread([scene]()
